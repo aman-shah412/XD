@@ -19,7 +19,7 @@ function Instagram() {
     const [zoomLevel, setZoomLevel] = useState(0.6);
     const [artBoardArray, setArtBoardArray] = useState([]);
     const [artBoard, setArtBoard] = useState();
-    const [expand, setExpand] = useState(false);
+    const [expand, setExpand] = useState(true);
     const [needToShift, setNeedToShift] = useState(false);
     const [shifted, setShifted] = useState(false);
 
@@ -111,7 +111,7 @@ function Instagram() {
             width: 1080,
             height: 1080,
             fill: '#FFFFFF',
-            name: 'artboard_1',
+            name: `artboard_${artBoardArray.length + 1}`,
         });
 
         const group = new fabric.Group([rect], {
@@ -123,18 +123,25 @@ function Instagram() {
                 left: -540,
                 top: -540,
             }),
+            name: `elementGroup_${artBoardArray.length + 1}`,
         });
-        var text = new fabric.FabricText('Artboard 1', {
+        var text = new fabric.FabricText(`Artboard ${artBoardArray.length + 1}`, {
             fontFamily: 'Arial',
             fontSize: 30,
             fill: '#FFFFFF',
+            hoverCursor: "text",
+            name: `artboardTitle_${artBoardArray.length + 1}`,
+            // evented: true,
         });
 
         const artBoardMainGroup = new fabric.Group([group, text], {
             left: 0,
             top: 0,
-            name: "main_artboard_group_1",
-            selectable: false
+            name: `mainArtboardGroup_${artBoardArray.length + 1}`,
+            hoverCursor: 'default',
+            selectable: false,
+            evented: true,
+            subTargetCheck: true
         })
 
         const boundingRect = artBoardMainGroup.getBoundingRect();
@@ -147,6 +154,7 @@ function Instagram() {
         });
 
         setArtBoard(rect)
+        setArtBoardArray([...artBoardArray, artBoardMainGroup])
         fabricCanvas.add(artBoardMainGroup);
         fabricCanvas.renderAll();
     }
@@ -184,7 +192,6 @@ function Instagram() {
     return (
         <>
             <div>
-
                 <div className='left_panel d-flex flex-column justify-content-between'>
                     <div className='element_panel d-flex flex-column align-items-center justify-content-around'>
                         <button className="utils_icons" onClick={handleExpandLeftPanel}><BiText size={20} /></button>
@@ -203,60 +210,44 @@ function Instagram() {
                     </div>
                 </div>
                 {expand && <div className="left_expanded_panel">
-                    <div className='position-relative d-flex justify-content-center align-items-center'>
-                        <h5 className='m-0'>Layers</h5>
-                        <button className="close_icon"><IoIosCloseCircle size={25} /></button>
-                    </div>
-                    <div class="accordion" id="layer_accordion">
-                        <div class="accordion-item mt-3">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
-                                Artboard 1
-                            </button>
-                            <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#layer_accordion">
-                                <div class="accordion-body px-0">
-                                    <div class="preview-tile-container">
-                                        <div class="preview-tile">
-                                            <MdOutlineDragIndicator size={25} color='#FFFFFF' />
-                                            <img src="vite.svg" alt="" />
-                                            <div class="d-flex flex-column">
-                                                <button className='tile-control-button'>
-                                                    {/* <FaLock size={15} /> */}
-                                                    <FaLockOpen size={15} />
-                                                </button>
-                                                <button className='tile-control-button'>
-                                                    <LuEye />
-                                                    {/* <LuEyeClosed /> */}
-                                                </button>
+                    <div className='left_expanded_panel_content'>
+                        <div className='position-relative d-flex justify-content-center align-items-center'>
+                            <span className='mb-3 text-light'>Layers</span>
+                            <button className="close_icon"><IoIosCloseCircle size={25} /></button>
+                        </div>
+                        <div className='accordion_content'>
+                            <div className="accordion" id="layer_accordion">
+                                {artBoardArray.map((board, i) => {
+                                    return <div className="accordion-item mb-3" key={i}>
+                                        <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target={`#collapse_${i + 1}`} aria-expanded="true" aria-controls="collapseOne">
+                                            Artboard {i + 1}
+                                        </button>
+                                        <div id={`collapse_${i + 1}`} className="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#layer_accordion">
+                                            <div className="accordion-body px-1">
+                                                <div className="preview-tile-container">
+                                                    <div className="preview-tile">
+                                                        <MdOutlineDragIndicator size={25} color='#FFFFFF' />
+                                                        <img src="vite.svg" alt="" />
+                                                        <div className="d-flex flex-column">
+                                                            <button className='tile-control-button'>
+                                                                {/* <FaLock size={15} /> */}
+                                                                <FaLockOpen size={15} />
+                                                            </button>
+                                                            <button className='tile-control-button'>
+                                                                <LuEye />
+                                                                {/* <LuEyeClosed /> */}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                })}
                             </div>
                         </div>
-                        <div class="accordion-item mt-3">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="true" aria-controls="collapseTwo">
-                                Artboard 2
-                            </button>
-                            <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#layer_accordion">
-                                <div class="accordion-body px-0">
-                                    <div class="preview-tile-container">
-                                        <div class="preview-tile">
-                                            <MdOutlineDragIndicator size={25} color='#FFFFFF' />
-                                            <img src="vite.svg" alt="" />
-                                            <div class="d-flex flex-column">
-                                                <button className='tile-control-button'>
-                                                    {/* <FaLock size={15} /> */}
-                                                    <FaLockOpen size={15} />
-                                                </button>
-                                                <button className='tile-control-button'>
-                                                    <LuEye />
-                                                    {/* <LuEyeClosed /> */}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div>
+                            <button className='add_new_artboard mt-4' onClick={() => { createWhiteBoard(canvas) }}>New Artboard</button>
                         </div>
                     </div>
                 </div>}
