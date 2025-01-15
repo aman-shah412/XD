@@ -28,6 +28,9 @@ function Instagram() {
 
     let startPos
     let shapeType = ""
+    let offsetX, offsetY
+    let titleDowned = false
+    let target = null
 
     useEffect(() => {
         const fabricCanvas = new fabric.Canvas(canvasRef.current, {
@@ -66,11 +69,20 @@ function Instagram() {
     }, [canvas, zoomLevel])
 
     const handleDrawingStart = (o) => {
+        startPos = canvas.getPointer(o.e);
 
         if (isDrawingRef.current) {
-            startPos = canvas.getPointer(o.e);
             tempShape.current = createTempShape(startPos)
             canvas.add(tempShape.current);
+        } else {
+            if (o.subTargets[0]?.name.includes("artboardTitle_")) {
+                target = o.subTargets[0]
+                titleDowned = true
+                // canvas.setActiveObject(artBoardMainGroup);
+                offsetX = target.parent.left - startPos.x;
+                offsetY = target.parent.top - startPos.y;
+                canvas.selection = false
+            }
         }
     }
 
@@ -95,6 +107,14 @@ function Instagram() {
             });
             canvas.renderAll();
         }
+        if (titleDowned) {
+            const pointer = canvas.getPointer(o.e);
+
+            target.parent.left = pointer.x + offsetX;
+            target.parent.top = pointer.y + offsetY;
+
+            canvas.renderAll();
+        }
     }
 
     const handleDrawingEnd = () => {
@@ -106,6 +126,11 @@ function Instagram() {
             canvas.defaultCursor = "default"
             canvas.selection = true;
             tempShape.current = null
+        }
+
+        if (titleDowned) {
+            titleDowned = false
+            canvas.selection = true
         }
     }
 
@@ -211,6 +236,7 @@ function Instagram() {
             }),
             name: `elementGroup_${artBoardArray.length + 1}`,
         });
+
         var text = new fabric.FabricText(`Artboard ${artBoardArray.length + 1}`, {
             fontFamily: 'Arial',
             fontSize: 30,
