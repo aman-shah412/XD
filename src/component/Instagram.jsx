@@ -15,13 +15,19 @@ import * as fabric from "fabric";
 function Instagram() {
 
     const canvasRef = useRef(null);
+    const isDrawingRef = useRef(false);
+    const tempShape = useRef(null);
+
     const [canvas, setCanvas] = useState(null);
     const [zoomLevel, setZoomLevel] = useState(0.6);
     const [artBoardArray, setArtBoardArray] = useState([]);
     const [artBoard, setArtBoard] = useState();
-    const [expand, setExpand] = useState(true);
+    const [expand, setExpand] = useState(false);
     const [needToShift, setNeedToShift] = useState(false);
     const [shifted, setShifted] = useState(false);
+
+    let startPos
+    let shapeType = ""
 
     useEffect(() => {
         const fabricCanvas = new fabric.Canvas(canvasRef.current, {
@@ -43,14 +49,83 @@ function Instagram() {
         if (canvas) {
             canvas.on('mouse:wheel', handleWheel);
             canvas.on('after:render', checkArtboardPosition);
+            canvas.on("mouse:down", handleDrawingStart)
+            canvas.on("mouse:move", handleDrawing)
+            canvas.on("mouse:up", handleDrawingEnd)
         }
 
         return () => {
             if (canvas) {
                 canvas.off('mouse:wheel', handleWheel);
+                canvas.off('after:render', checkArtboardPosition);
+                canvas.off("mouse:down", handleDrawingStart)
+                canvas.off("mouse:move", handleDrawing)
+                canvas.off("mouse:up", handleDrawingEnd)
             }
         };
     }, [canvas, zoomLevel])
+
+    const handleDrawingStart = (o) => {
+
+        if (isDrawingRef.current) {
+            startPos = canvas.getPointer(o.e);
+            tempShape.current = createTempShape(startPos)
+            canvas.add(tempShape.current);
+        }
+    }
+
+    const handleDrawing = (o) => {
+        // var objects = canvas.getObjects();
+        // for (var i = objects.length - 1; i >= 0; i--) {
+        //     if (objects[i].containsPoint(canvas.getPointer(o.e))) {
+        //         console.log('Mouse is over:', objects[i]);
+        //         break;
+        //     }
+        // }
+        if (tempShape.current) {
+            const pointer = canvas.getPointer(o.e);
+            const width = Math.abs(pointer.x - startPos.x);
+            const height = Math.abs(pointer.y - startPos.y);
+
+            tempShape.current.set({
+                width: width,
+                height: height,
+                left: Math.min(startPos.x, pointer.x),
+                top: Math.min(startPos.y, pointer.y)
+            });
+            canvas.renderAll();
+        }
+    }
+
+    const handleDrawingEnd = () => {
+        if (isDrawingRef.current) {
+            tempShape.current.setCoords();
+            canvas.remove(tempShape.current)
+            artBoard.parent.add(tempShape.current)
+            isDrawingRef.current = false
+            canvas.defaultCursor = "default"
+            canvas.selection = true;
+            tempShape.current = null
+        }
+    }
+
+    function createTempShape(startPoint) {
+        switch (shapeType) {
+            case "SQUARE":
+                return new fabric.Rect({
+                    left: startPoint.x,
+                    top: startPoint.y,
+                    width: 0,
+                    height: 0,
+                    fill: 'rgba(0,0,0,0.3)',
+                    stroke: 'black',
+                    strokeWidth: 1,
+                    selectable: false
+                });
+            default:
+                null
+        }
+    }
 
     const handleWheel = (opt) => {
         opt.e.preventDefault();
@@ -112,6 +187,17 @@ function Instagram() {
             height: 1080,
             fill: '#FFFFFF',
             name: `artboard_${artBoardArray.length + 1}`,
+            cornerStyle: 'circle',
+            borderColor: 'blue',
+            cornerColor: 'white',
+            cornerStrokeColor: 'blue',
+            borderScaleFactor: 2,
+            transparentCorners: false,
+            evented: false
+        });
+
+        rect.setControlsVisibility({
+            mtr: false,
         });
 
         const group = new fabric.Group([rect], {
@@ -128,7 +214,7 @@ function Instagram() {
         var text = new fabric.FabricText(`Artboard ${artBoardArray.length + 1}`, {
             fontFamily: 'Arial',
             fontSize: 30,
-            fill: '#FFFFFF',
+            fill: 'gray',
             hoverCursor: "text",
             name: `artboardTitle_${artBoardArray.length + 1}`,
             // evented: true,
@@ -141,17 +227,27 @@ function Instagram() {
             hoverCursor: 'default',
             selectable: false,
             evented: true,
-            subTargetCheck: true
+            subTargetCheck: true,
+            hasControls: false,
+            hasBorders: false
         })
 
-        const boundingRect = artBoardMainGroup.getBoundingRect();
-        const centerX = (fabricCanvas.width - boundingRect.width) / 2 - boundingRect.left;
-        const centerY = (fabricCanvas.height - boundingRect.height) / 2 - boundingRect.top;
+        if (artBoardArray.length < 1) {
+            const boundingRect = artBoardMainGroup.getBoundingRect();
+            const centerX = (fabricCanvas.width - boundingRect.width) / 2 - boundingRect.left;
+            const centerY = (fabricCanvas.height - boundingRect.height) / 2 - boundingRect.top;
 
-        artBoardMainGroup.set({
-            left: centerX,
-            top: centerY,
-        });
+            artBoardMainGroup.set({
+                left: centerX,
+                top: centerY,
+            });
+        } else {
+            const { left: x1, top: y1, width: w1, height: h1 } = artBoardArray[artBoardArray.length - 1]
+            artBoardMainGroup.set({
+                left: x1 + w1 + 20,
+                top: y1,
+            });
+        }
 
         setArtBoard(rect)
         setArtBoardArray([...artBoardArray, artBoardMainGroup])
@@ -176,7 +272,7 @@ function Instagram() {
     const handleExpandLeftPanel = () => {
         setExpand(!expand)
 
-        if (needToShift) {
+        if (needToShift && !expand) {
             canvas.viewportTransform[4] += 350;
             canvas.requestRenderAll();
             setShifted(true)
@@ -189,23 +285,30 @@ function Instagram() {
         }
     }
 
+    const startDrawing = (shape) => {
+        shapeType = shape
+        isDrawingRef.current = true
+        canvas.defaultCursor = "crosshair"
+        canvas.selection = false;
+    }
+
     return (
         <>
             <div>
                 <div className='left_panel d-flex flex-column justify-content-between'>
                     <div className='element_panel d-flex flex-column align-items-center justify-content-around'>
-                        <button className="utils_icons" onClick={handleExpandLeftPanel}><BiText size={20} /></button>
+                        <button className="utils_icons"><BiText size={20} /></button>
                         <button className="utils_icons"><RiShapesLine size={20} /></button>
                         <button className="utils_icons"><IoCloudUploadOutline size={20} /></button>
                         <button className="utils_icons"><LuBrain size={20} /></button>
-                        <button className="utils_icons"><FaRegSquare size={20} /></button>
+                        <button className="utils_icons" onClick={() => { startDrawing("SQUARE") }}><FaRegSquare size={20} /></button>
                         <button className="utils_icons"><FaRegCircle size={20} /></button>
                         <button className="utils_icons"><FiTriangle size={20} /></button>
                         <button className="utils_icons"><FaSlash size={20} /></button>
                         <button className="utils_icons" onClick={handleResetZoom}><TbZoomReset size={20} /></button>
                     </div>
                     <div className='tools_panel'>
-                        <button className="utils_icons"><FaLayerGroup size={20} /></button>
+                        <button className="utils_icons" onClick={handleExpandLeftPanel}><FaLayerGroup size={20} /></button>
                         <button className="utils_icons"><FaRegKeyboard size={20} /></button>
                     </div>
                 </div>
