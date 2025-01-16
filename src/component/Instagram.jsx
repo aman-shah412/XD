@@ -39,7 +39,11 @@ function Instagram() {
         });
 
         setCanvas(fabricCanvas);
-        fabricCanvas.zoomToPoint({ x: fabricCanvas.width / 2, y: fabricCanvas.height / 2 }, zoomLevel);
+        const browserZoomLevel = Math.round(window.devicePixelRatio * 100);
+
+        const fabricZoomLevel = 120 - (4 / 5) * browserZoomLevel;
+        fabricCanvas.zoomToPoint({ x: fabricCanvas.width / 2, y: fabricCanvas.height / 2 }, fabricZoomLevel / 100);
+        setZoomLevel(fabricZoomLevel / 100)
         createWhiteBoard(fabricCanvas)
 
 
@@ -51,7 +55,7 @@ function Instagram() {
     useEffect(() => {
         if (canvas) {
             canvas.on('mouse:wheel', handleWheel);
-            canvas.on('after:render', checkArtboardPosition);
+            // canvas.on('after:render', checkArtboardPosition);
             canvas.on("mouse:down", handleDrawingStart)
             canvas.on("mouse:move", handleDrawing)
             canvas.on("mouse:up", handleDrawingEnd)
@@ -60,7 +64,7 @@ function Instagram() {
         return () => {
             if (canvas) {
                 canvas.off('mouse:wheel', handleWheel);
-                canvas.off('after:render', checkArtboardPosition);
+                // canvas.off('after:render', checkArtboardPosition);
                 canvas.off("mouse:down", handleDrawingStart)
                 canvas.off("mouse:move", handleDrawing)
                 canvas.off("mouse:up", handleDrawingEnd)
@@ -87,13 +91,6 @@ function Instagram() {
     }
 
     const handleDrawing = (o) => {
-        // var objects = canvas.getObjects();
-        // for (var i = objects.length - 1; i >= 0; i--) {
-        //     if (objects[i].containsPoint(canvas.getPointer(o.e))) {
-        //         console.log('Mouse is over:', objects[i]);
-        //         break;
-        //     }
-        // }
         if (tempShape.current) {
             const pointer = canvas.getPointer(o.e);
             const width = Math.abs(pointer.x - startPos.x);
@@ -110,10 +107,12 @@ function Instagram() {
         if (titleDowned) {
             const pointer = canvas.getPointer(o.e);
 
-            target.parent.left = pointer.x + offsetX;
-            target.parent.top = pointer.y + offsetY;
-
-            canvas.renderAll();
+            target.parent.set({
+                left: pointer.x + offsetX,
+                top: pointer.y + offsetY
+            })
+            target.parent.setCoords();
+            canvas.requestRenderAll();
         }
     }
 
@@ -131,6 +130,7 @@ function Instagram() {
         if (titleDowned) {
             titleDowned = false
             canvas.selection = true
+            canvas.renderAll();
         }
     }
 
