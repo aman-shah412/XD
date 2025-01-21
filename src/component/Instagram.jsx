@@ -21,13 +21,13 @@ function Instagram() {
     const [canvas, setCanvas] = useState(null);
     const [zoomLevel, setZoomLevel] = useState(0.6);
     const [artBoardArray, setArtBoardArray] = useState([]);
-    const [artBoard, setArtBoard] = useState();
+    const [artBoard, setArtBoard] = useState(null);
     const [expand, setExpand] = useState(false);
     const [needToShift, setNeedToShift] = useState(false);
     const [shifted, setShifted] = useState(false);
+    const [shapeType, setShapeType] = useState(null);
 
     let startPos
-    let shapeType = ""
     let offsetX, offsetY
     let titleDowned = false
     let target = null
@@ -55,22 +55,33 @@ function Instagram() {
     useEffect(() => {
         if (canvas) {
             canvas.on('mouse:wheel', handleWheel);
-            // canvas.on('after:render', checkArtboardPosition);
+            canvas.on('after:render', checkArtboardPosition);
+        }
+
+        return () => {
+            if (canvas) {
+                canvas.off('mouse:wheel', handleWheel);
+                canvas.off('after:render', checkArtboardPosition);
+            }
+        };
+    }, [zoomLevel])
+
+    useEffect(() => {
+        if (shapeType) {
             canvas.on("mouse:down", handleDrawingStart)
             canvas.on("mouse:move", handleDrawing)
             canvas.on("mouse:up", handleDrawingEnd)
         }
 
         return () => {
-            if (canvas) {
-                canvas.off('mouse:wheel', handleWheel);
-                // canvas.off('after:render', checkArtboardPosition);
+            if (shapeType) {
                 canvas.off("mouse:down", handleDrawingStart)
                 canvas.off("mouse:move", handleDrawing)
                 canvas.off("mouse:up", handleDrawingEnd)
             }
-        };
-    }, [canvas, zoomLevel])
+        }
+    }, [shapeType])
+
 
     const handleDrawingStart = (o) => {
         startPos = canvas.getPointer(o.e);
@@ -91,25 +102,22 @@ function Instagram() {
     }
 
     const handleDrawing = (o) => {
-        if (tempShape.current) {
-            const pointer = canvas.getPointer(o.e);
-            const width = Math.abs(pointer.x - startPos.x);
-            const height = Math.abs(pointer.y - startPos.y);
+        if (isDrawingRef.current && !tempShape.current) {
+            startPos = canvas.getPointer(o.e);
+        }
 
-            tempShape.current.set({
-                width: width,
-                height: height,
-                left: Math.min(startPos.x, pointer.x),
-                top: Math.min(startPos.y, pointer.y)
-            });
-            canvas.renderAll();
+        if (isDrawingRef.current && tempShape.current) {
+            const endPos = canvas.getPointer(o.e);
+            const shiftPressed = o.e.shiftKey;
+            updateTempShape(endPos, shiftPressed);
+            canvas.requestRenderAll()
         }
         if (titleDowned) {
-            const pointer = canvas.getPointer(o.e);
+            const endPos = canvas.getPointer(o.e);
 
             target.parent.set({
-                left: pointer.x + offsetX,
-                top: pointer.y + offsetY
+                left: endPos.x + offsetX,
+                top: endPos.y + offsetY
             })
             target.parent.setCoords();
             canvas.requestRenderAll();
@@ -147,8 +155,88 @@ function Instagram() {
                     strokeWidth: 1,
                     selectable: false
                 });
+            case "CIRCLE":
+                return new fabric.Ellipse({
+                    left: startPoint.x,
+                    top: startPoint.y,
+                    rx: 0,
+                    ry: 0,
+                    fill: 'rgba(0,0,0,0.3)',
+                    stroke: 'black',
+                    strokeWidth: 1,
+                    selectable: false,
+                    originX: 'center',
+                    originY: 'center'
+                });
+            case "TRIANGLE":
+                return new fabric.Triangle({
+                    left: startPoint.x,
+                    top: startPoint.y,
+                    width: 0,
+                    height: 0,
+                    fill: 'rgba(0,0,0,0.3)',
+                    stroke: 'black',
+                    strokeWidth: 1,
+                    selectable: false
+                });
             default:
                 null
+        }
+    }
+
+    function updateTempShape(endPos, shiftPressed) {
+        switch (shapeType) {
+            case "SQUARE":
+                let width = Math.abs(endPos.x - startPos.x);
+                let height = Math.abs(endPos.y - startPos.y);
+
+                if (shiftPressed) {
+                    const size = Math.min(width, height);
+                    width = height = size;
+                }
+
+                tempShape.current.set({
+                    width: width,
+                    height: height,
+                    left: startPos.x + (endPos.x > startPos.x ? 0 : -width),
+                    top: startPos.y + (endPos.y > startPos.y ? 0 : -height)
+                });
+                break;
+            case "CIRCLE":
+                let rx = Math.abs(endPos.x - startPos.x) / 2;
+                let ry = Math.abs(endPos.y - startPos.y) / 2;
+
+                if (shiftPressed) {
+                    const radius = Math.min(rx, ry);
+                    rx = ry = radius;
+                }
+
+                tempShape.current.set({
+                    rx: rx,
+                    ry: ry,
+                    left: startPos.x + (endPos.x > startPos.x ? rx : -rx),
+                    top: startPos.y + (endPos.y > startPos.y ? ry : -ry)
+                });
+                break;
+            case "TRIANGLE":
+                let triangleWidth = Math.abs(endPos.x - startPos.x);
+                let triangleHeight = Math.abs(endPos.y - startPos.y);
+
+                if (shiftPressed) {
+                    const size = Math.min(triangleWidth, triangleHeight * (2 / Math.sqrt(3)));
+                    triangleWidth = size;
+                    triangleHeight = (Math.sqrt(3) / 2) * size
+                }
+
+                tempShape.current.set({
+                    width: triangleWidth,
+                    height: triangleHeight,
+                    left: startPos.x + (endPos.x > startPos.x ? 0 : -triangleWidth),
+                    top: startPos.y + (endPos.y > startPos.y ? 0 : -triangleHeight)
+                });
+                break;
+            default:
+                break;
         }
     }
 
@@ -174,7 +262,6 @@ function Instagram() {
 
         if (newZoom != zoomLevel) {
             canvas.zoomToPoint({ x: pointer.x, y: pointer.y }, newZoom);
-
         }
 
         canvas.requestRenderAll();
@@ -312,7 +399,7 @@ function Instagram() {
     }
 
     const startDrawing = (shape) => {
-        shapeType = shape
+        setShapeType(shape)
         isDrawingRef.current = true
         canvas.defaultCursor = "crosshair"
         canvas.selection = false;
@@ -328,8 +415,8 @@ function Instagram() {
                         <button className="utils_icons"><IoCloudUploadOutline size={20} /></button>
                         <button className="utils_icons"><LuBrain size={20} /></button>
                         <button className="utils_icons" onClick={() => { startDrawing("SQUARE") }}><FaRegSquare size={20} /></button>
-                        <button className="utils_icons"><FaRegCircle size={20} /></button>
-                        <button className="utils_icons"><FiTriangle size={20} /></button>
+                        <button className="utils_icons" onClick={() => { startDrawing("CIRCLE") }}><FaRegCircle size={20} /></button>
+                        <button className="utils_icons" onClick={() => { startDrawing("TRIANGLE") }}><FiTriangle size={20} /></button>
                         <button className="utils_icons"><FaSlash size={20} /></button>
                         <button className="utils_icons" onClick={handleResetZoom}><TbZoomReset size={20} /></button>
                     </div>
