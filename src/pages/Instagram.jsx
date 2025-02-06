@@ -11,6 +11,7 @@ import { LuBrain, LuEye, LuEyeClosed } from "react-icons/lu";
 import { FiTriangle } from "react-icons/fi";
 import "../appCSS/instagram.css"
 import * as fabric from "fabric";
+import { Artboard } from "../subClass";
 
 function Instagram() {
 
@@ -33,6 +34,14 @@ function Instagram() {
     let clickedTitle = null
     let clickedGroup = null
     let selectionBox = null;
+    let dragStarted = false;
+    let boundOfDragging = {
+        left: 0,
+        top: 0,
+        width: 0,
+        height: 0
+    };
+    let artboardsBound = []
 
     useEffect(() => {
         const fabricCanvas = new fabric.Canvas(canvasRef.current, {
@@ -44,7 +53,7 @@ function Instagram() {
         setCanvas(fabricCanvas);
         const browserZoomLevel = Math.round(window.devicePixelRatio * 100);
 
-        const fabricZoomLevel = 120 - (4 / 5) * browserZoomLevel;
+        const fabricZoomLevel = 150 - (4 / 5) * browserZoomLevel;
         fabricCanvas.zoomToPoint({ x: fabricCanvas.width / 2, y: fabricCanvas.height / 2 }, fabricZoomLevel / 100);
         setZoomLevel(fabricZoomLevel / 100)
         setShapeType(null)
@@ -74,7 +83,7 @@ function Instagram() {
             canvas.on("mouse:down", handleDrawingStart)
             canvas.on("mouse:move", handleDrawing)
             canvas.on("mouse:up", handleDrawingEnd)
-            canvas.on("selection:created", selectionCreated)
+            canvas.on("object:moving", handleDragging)
         }
 
         return () => {
@@ -82,7 +91,7 @@ function Instagram() {
                 canvas.off("mouse:down", handleDrawingStart)
                 canvas.off("mouse:move", handleDrawing)
                 canvas.off("mouse:up", handleDrawingEnd)
-                canvas.off("selection:created", selectionCreated)
+                canvas.on("object:moving", handleDragging)
             }
         }
     }, [shapeType])
@@ -155,8 +164,6 @@ function Instagram() {
     const handleDrawingEnd = () => {
         if (isDrawingRef.current) {
             tempShape.current.setCoords();
-            canvas.remove(tempShape.current)
-            artBoard.parent.add(tempShape.current)
             isDrawingRef.current = false
             canvas.defaultCursor = "default"
             canvas.selection = true;
@@ -192,6 +199,10 @@ function Instagram() {
             }
             selectionBox = null
         }
+
+        if (dragStarted) {
+            dragStarted = false
+        }
     }
 
     function createTempShape(startPoint) {
@@ -202,10 +213,11 @@ function Instagram() {
                     top: startPoint.y,
                     width: 0,
                     height: 0,
-                    fill: 'rgba(0,0,0,0.3)',
+                    fill: '#000000',
                     stroke: 'black',
                     strokeWidth: 1,
-                    selectable: true
+                    selectable: true,
+                    name: "shape"
                 });
             case "CIRCLE":
                 return new fabric.Ellipse({
@@ -213,12 +225,13 @@ function Instagram() {
                     top: startPoint.y,
                     rx: 0,
                     ry: 0,
-                    fill: 'rgba(0,0,0,0.3)',
+                    fill: '#000000',
                     stroke: 'black',
                     strokeWidth: 1,
                     selectable: false,
                     originX: 'center',
-                    originY: 'center'
+                    originY: 'center',
+                    name: "shape"
                 });
             case "TRIANGLE":
                 return new fabric.Triangle({
@@ -226,10 +239,11 @@ function Instagram() {
                     top: startPoint.y,
                     width: 0,
                     height: 0,
-                    fill: 'rgba(0,0,0,0.3)',
+                    fill: '#000000',
                     stroke: 'black',
                     strokeWidth: 1,
-                    selectable: false
+                    selectable: false,
+                    name: "shape"
                 });
             default:
                 null
@@ -292,68 +306,78 @@ function Instagram() {
         }
     }
 
-    function selectionCreated(e) {
-        let selectedElement = e.selected
-        if (selectedElement) {
-            selectedElement.forEach((element) => {
+    const handleDragging = (o) => {
+        let activeObjects = canvas.getActiveObjects()
+        let cursorPos = o.pointer
+        activeObjects = activeObjects.filter(obj => obj.name !== "artboard");
+        if (!dragStarted) {
+            dragStarted = true
+            if (activeObjects.length === 0) return;
 
-                if (element.name === "artboard_group") {
-                    const rect = element._objects.find(ele => ele.name === "artboard_rect")
-                    const canvasZoom = canvas.getZoom();
-                    const rectTransform = rect.getBoundingRect(true);
-                    const groupTransform = element.getBoundingRect(true);
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
-                    const controls = element.controls;
+            activeObjects.forEach(obj => {
+                obj.setCoords();
+                let { tl, tr, bl, br } = obj.aCoords;
 
-                    const offsets = {
-                        tl: {
-                            x: (rectTransform.left - groupTransform.left) * canvasZoom,
-                            y: (rectTransform.top - groupTransform.top) * canvasZoom,
-                        },
-                        tr: {
-                            x: (rectTransform.left + rectTransform.width - groupTransform.left - groupTransform.width) * canvasZoom,
-                            y: (rectTransform.top - groupTransform.top) * canvasZoom,
-                        },
-                        bl: {
-                            x: (rectTransform.left - groupTransform.left) * canvasZoom,
-                            y: (rectTransform.top + rectTransform.height - groupTransform.top - groupTransform.height) * canvasZoom,
-                        },
-                        br: {
-                            x: (rectTransform.left + rectTransform.width - groupTransform.left - groupTransform.width) * canvasZoom,
-                            y: (rectTransform.top + rectTransform.height - groupTransform.top - groupTransform.height) * canvasZoom,
-                        },
-                        ml: {
-                            x: (rectTransform.left - groupTransform.left) * canvasZoom,
-                            y: (rectTransform.top + (rectTransform.height / 2) - groupTransform.top - (groupTransform.height / 2)) * canvasZoom,
-                        },
-                        mt: {
-                            x: (rectTransform.left + (rectTransform.width / 2) - groupTransform.left - (groupTransform.width / 2)) * canvasZoom,
-                            y: (rectTransform.top - groupTransform.top) * canvasZoom,
-                        },
-                        mr: {
-                            x: (rectTransform.left + rectTransform.width - groupTransform.left - groupTransform.width) * canvasZoom,
-                            y: (rectTransform.top + (rectTransform.height / 2) - groupTransform.top - (groupTransform.height / 2)) * canvasZoom,
-                        },
-                        mb: {
-                            x: (rectTransform.left + (rectTransform.width / 2) - groupTransform.left - (groupTransform.width / 2)) * canvasZoom,
-                            y: (rectTransform.top + rectTransform.height - groupTransform.top - groupTransform.height) * canvasZoom,
-                        },
-                    };
+                minX = Math.min(minX, tl.x, tr.x, bl.x, br.x);
+                minY = Math.min(minY, tl.y, tr.y, bl.y, br.y);
+                maxX = Math.max(maxX, tl.x, tr.x, bl.x, br.x);
+                maxY = Math.max(maxY, tl.y, tr.y, bl.y, br.y);
+            });
 
-                    element.controls.tl = new fabric.Control({ ...controls.tl, offsetX: offsets.tl.x, offsetY: offsets.tl.y });
-                    element.controls.tr = new fabric.Control({ ...controls.tr, offsetX: offsets.tr.x, offsetY: offsets.tr.y });
-                    element.controls.bl = new fabric.Control({ ...controls.bl, offsetX: offsets.bl.x, offsetY: offsets.bl.y });
-                    element.controls.br = new fabric.Control({ ...controls.br, offsetX: offsets.br.x, offsetY: offsets.br.y });
-                    element.controls.ml = new fabric.Control({ ...controls.ml, offsetX: offsets.ml.x, offsetY: offsets.ml.y });
-                    element.controls.mt = new fabric.Control({ ...controls.mt, offsetX: offsets.mt.x, offsetY: offsets.mt.y });
-                    element.controls.mr = new fabric.Control({ ...controls.mr, offsetX: offsets.mr.x, offsetY: offsets.mr.y });
-                    element.controls.mb = new fabric.Control({ ...controls.mb, offsetX: offsets.mb.x, offsetY: offsets.mb.y });
+            boundOfDragging = {
+                left: minX,
+                top: minY,
+                width: maxX - minX,
+                height: maxY - minY
+            };
+            const zoom = canvas.getZoom();
+            const viewportTransform = canvas.viewportTransform;
 
-                    element.setCoords()
-                    canvas.requestRenderAll()
-                }
+            artboardsBound = artBoardArray.map((boards) => {
+                const artboardRect = boards.getBoundingRect();
+
+                const adjustedLeft = (artboardRect.left);
+                const adjustedTop = (artboardRect.top);
+                const adjustedWidth = artboardRect.width;
+                const adjustedHeight = artboardRect.height;
+
+                return { board: boards, left: adjustedLeft, top: adjustedTop, width: adjustedWidth, height: adjustedHeight }
             })
         }
+
+        artboardsBound.forEach((boardsBound) => {
+            const isInsideArtboard = cursorPos.x >= boardsBound.left &&
+                cursorPos.x <= boardsBound.left + boardsBound.width &&
+                cursorPos.y >= boardsBound.top &&
+                cursorPos.y <= boardsBound.top + boardsBound.height;
+
+            if (isInsideArtboard) {
+                activeObjects.forEach((element) => {
+                    element.clipPath = new fabric.Rect({
+                        left: boardsBound.left,
+                        top: boardsBound.top,
+                        width: boardsBound.width,
+                        height: boardsBound.height,
+                        absolutePositioned: true
+                    })
+                    boardsBound.board.addChild(element)
+                })
+            } else {
+                activeObjects.forEach((element) => {
+                    element.clipPath = new fabric.Rect({
+                        left: element.left,
+                        top: element.top,
+                        width: element.getScaledWidth(),
+                        height: element.getScaledHeight(),
+                        absolutePositioned: true
+                    })
+                    boardsBound.board.removeChild(element)
+                })
+            }
+            canvas.requestRenderAll();
+        })
     }
 
     const handleWheel = (opt) => {
@@ -415,98 +439,55 @@ function Instagram() {
 
     const createWhiteBoard = (fabricCanvas) => {
 
-        const artboardTitle = new fabric.FabricText(`Artboard ${artBoardArray.length + 1}`, {
-            fontFamily: 'Arial',
-            fontSize: 30,
-            fill: 'gray',
-            hoverCursor: "text",
-            name: "artboard_title",
-            id: `artboardTitle_${artBoardArray.length + 1}`,
-            groupID: `artboardGroup_${artBoardArray.length + 1}`,
-            selectable: false,
-            evented: true,
-            hasControls: false,
-            hasBorders: false,
-        });
-
-        const artboardRect = new fabric.Rect({
-            width: 1080,
-            height: 1080,
-            fill: '#FFFFFF',
-            name: "artboard_rect",
-            id: `artboardRect_${artBoardArray.length + 1}`,
-            groupID: `artboardGroup_${artBoardArray.length + 1}`
-        });
-
-
-        const artboardGroup = new fabric.Group([artboardRect], {
+        const artboard = new Artboard({
             left: 0,
             top: 0,
-            clipPath: new fabric.Rect({
-                width: 1080,
-                height: 1080,
-                left: -540,
-                top: -540,
-            }),
-            name: "artboard_group",
-            id: `artboardGroup_${artBoardArray.length + 1}`,
-            title: `Artboard ${artBoardArray.length + 1}`,
-            textID: `artboardTitle_${artBoardArray.length + 1}`,
-            rectID: `artboardRect_${artBoardArray.length + 1}`,
+            width: 1080,
+            height: 1080,
+            originX: "left",
+            originY: "top",
+            fill: '#FFFFFF',
+            label: "Artboard 1",
+            id: generateRandomId("artboard_"),
+            name: "artboard",
             cornerStyle: 'circle',
             borderColor: 'blue',
             cornerColor: 'white',
             cornerStrokeColor: 'blue',
             borderScaleFactor: 2,
             transparentCorners: false,
-            hoverCursor: 'default',
-            selectable: true,
-            evented: true,
-            subTargetCheck: true,
-            hasControls: true,
-            hasBorders: false,
-            lockScalingFlip: true,
+            // lockScalingFlip: true,
         });
 
-        artboardGroup.setControlsVisibility({
+        artboard.setControlsVisibility({
             mtr: false,
         });
 
-
         if (artBoardArray.length < 1) {
-            const boundingRect = artboardGroup.getBoundingRect();
+            const boundingRect = artboard.getBoundingRect();
             const centerX = (fabricCanvas.width - boundingRect.width) / 2 - boundingRect.left;
             const centerY = (fabricCanvas.height - boundingRect.height) / 2 - boundingRect.top;
 
-            artboardTitle.set({
-                left: centerX,
-                top: centerY - 50,
-            });
-            artboardGroup.set({
+            artboard.set({
                 left: centerX,
                 top: centerY,
             });
 
-            artboardTitle.setCoords();
-            artboardGroup.setCoords();
+            artboard.setCoords();
         } else {
             const { left: x1, top: y1, width: w1, height: h1 } = artBoardArray[artBoardArray.length - 1]
-            artboardTitle.set({
-                left: x1 + w1 + 20,
-                top: y1 - 50,
-            });
-            artboardGroup.set({
+
+            artboard.set({
                 left: x1 + w1 + 20,
                 top: y1,
             });
-            artboardTitle.setCoords();
-            artboardGroup.setCoords();
+            artboard.setCoords();
         }
 
-        setArtBoard(artboardRect)
-        setArtBoardArray([...artBoardArray, artboardGroup])
-        fabricCanvas.add(artboardGroup);
-        fabricCanvas.add(artboardTitle);
+        setArtBoard(artboard)
+        setArtBoardArray([...artBoardArray, artboard])
+
+        artboard.addTo(fabricCanvas);
         fabricCanvas.renderAll();
     }
 
@@ -522,7 +503,6 @@ function Instagram() {
             setNeedToShift(false)
         }
     };
-
 
     const handleExpandLeftPanel = () => {
         setExpand(!expand)
@@ -622,6 +602,10 @@ function Instagram() {
             }
         }
         return null;
+    }
+
+    function generateRandomId(id) {
+        return id + (Math.random() * 1000) + 1
     }
 
     return (

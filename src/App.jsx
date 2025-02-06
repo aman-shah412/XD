@@ -1,6 +1,6 @@
 import './App.css'
 import { Routes, Route } from 'react-router-dom';
-import Instagram from './component/Instagram';
+import Instagram from './pages/Instagram';
 function App() {
 
   return (
