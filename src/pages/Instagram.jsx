@@ -20,7 +20,7 @@ function Instagram() {
     const tempShape = useRef(null);
 
     const [canvas, setCanvas] = useState(null);
-    const [zoomLevel, setZoomLevel] = useState(0.6);
+    const [zoomLevel, setZoomLevel] = useState(0.8);
     const [artBoardArray, setArtBoardArray] = useState([]);
     const [artBoard, setArtBoard] = useState(null);
     const [expand, setExpand] = useState(false);
@@ -35,12 +35,6 @@ function Instagram() {
     let clickedGroup = null
     let selectionBox = null;
     let dragStarted = false;
-    let boundOfDragging = {
-        left: 0,
-        top: 0,
-        width: 0,
-        height: 0
-    };
     let artboardsBound = []
 
     useEffect(() => {
@@ -51,11 +45,6 @@ function Instagram() {
         });
 
         setCanvas(fabricCanvas);
-        const browserZoomLevel = Math.round(window.devicePixelRatio * 100);
-
-        const fabricZoomLevel = 150 - (4 / 5) * browserZoomLevel;
-        fabricCanvas.zoomToPoint({ x: fabricCanvas.width / 2, y: fabricCanvas.height / 2 }, fabricZoomLevel / 100);
-        setZoomLevel(fabricZoomLevel / 100)
         setShapeType(null)
         createWhiteBoard(fabricCanvas)
 
@@ -307,33 +296,16 @@ function Instagram() {
     }
 
     const handleDragging = (o) => {
+        let target = o.target
         let activeObjects = canvas.getActiveObjects()
         let cursorPos = o.pointer
-        activeObjects = activeObjects.filter(obj => obj.name !== "artboard");
+
+        if (activeObjects.some(obj => obj.name === "artboard")) {
+            return;
+        }
+
         if (!dragStarted) {
             dragStarted = true
-            if (activeObjects.length === 0) return;
-
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-
-            activeObjects.forEach(obj => {
-                obj.setCoords();
-                let { tl, tr, bl, br } = obj.aCoords;
-
-                minX = Math.min(minX, tl.x, tr.x, bl.x, br.x);
-                minY = Math.min(minY, tl.y, tr.y, bl.y, br.y);
-                maxX = Math.max(maxX, tl.x, tr.x, bl.x, br.x);
-                maxY = Math.max(maxY, tl.y, tr.y, bl.y, br.y);
-            });
-
-            boundOfDragging = {
-                left: minX,
-                top: minY,
-                width: maxX - minX,
-                height: maxY - minY
-            };
-            const zoom = canvas.getZoom();
-            const viewportTransform = canvas.viewportTransform;
 
             artboardsBound = artBoardArray.map((boards) => {
                 const artboardRect = boards.getBoundingRect();
@@ -353,8 +325,8 @@ function Instagram() {
                 cursorPos.y >= boardsBound.top &&
                 cursorPos.y <= boardsBound.top + boardsBound.height;
 
-            if (isInsideArtboard) {
-                activeObjects.forEach((element) => {
+            activeObjects.forEach((element) => {
+                if (isInsideArtboard) {
                     element.clipPath = new fabric.Rect({
                         left: boardsBound.left,
                         top: boardsBound.top,
@@ -363,19 +335,28 @@ function Instagram() {
                         absolutePositioned: true
                     })
                     boardsBound.board.addChild(element)
-                })
-            } else {
-                activeObjects.forEach((element) => {
-                    element.clipPath = new fabric.Rect({
-                        left: element.left,
-                        top: element.top,
-                        width: element.getScaledWidth(),
-                        height: element.getScaledHeight(),
-                        absolutePositioned: true
-                    })
-                    boardsBound.board.removeChild(element)
-                })
-            }
+                } else {
+                    if (activeObjects.length > 1) {
+                        element.clipPath = new fabric.Rect({
+                            left: target.left + element.left,
+                            top: target.top + element.top,
+                            width: target.width + element.getScaledWidth(),
+                            height: target.height + element.getScaledHeight(),
+                            absolutePositioned: true
+                        })
+                        boardsBound.board.removeChild(element)
+                    } else {
+                        element.clipPath = new fabric.Rect({
+                            left: element.left,
+                            top: element.top,
+                            width: element.getScaledWidth(),
+                            height: element.getScaledHeight(),
+                            absolutePositioned: true
+                        })
+                        boardsBound.board.removeChild(element)
+                    }
+                }
+            })
             canvas.requestRenderAll();
         })
     }
@@ -384,29 +365,23 @@ function Instagram() {
         opt.e.preventDefault();
         opt.e.stopPropagation();
 
+        const zoomFactor = 1.01;
+        const delta = opt.e.deltaY > 0 ? 1 : -1;
         let newZoom = zoomLevel;
-        const pointer = canvas.getPointer(opt.e)
 
         if (opt.e.ctrlKey) {
-            const zoomFactor = 1.01;
-            const delta = opt.e.deltaY > 0 ? 1 : -1;
             newZoom = delta > 0 ? zoomLevel / zoomFactor : zoomLevel * zoomFactor;
             newZoom = Math.max(0.1, Math.min(newZoom, 5));
-            setZoomLevel(newZoom)
+            setZoomLevel(newZoom);
+
+            canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, newZoom);
         } else {
             const dx = opt.e.deltaX;
             const dy = opt.e.deltaY;
-            canvas.viewportTransform[4] -= dx;
-            canvas.viewportTransform[5] -= dy;
+            canvas.relativePan(new fabric.Point(-dx, -dy));
         }
 
-        if (newZoom != zoomLevel) {
-            canvas.zoomToPoint({ x: pointer.x, y: pointer.y }, newZoom);
-        }
-
-        canvas.getObjects().forEach((obj) => {
-            obj.setCoords();
-        });
+        canvas.getObjects().forEach((obj) => obj.setCoords());
 
         canvas.requestRenderAll();
     };
@@ -447,7 +422,7 @@ function Instagram() {
             originX: "left",
             originY: "top",
             fill: '#FFFFFF',
-            label: "Artboard 1",
+            label: `Artboard ${artBoardArray.length + 1}`,
             id: generateRandomId("artboard_"),
             name: "artboard",
             cornerStyle: 'circle',
@@ -474,6 +449,7 @@ function Instagram() {
             });
 
             artboard.setCoords();
+            handleSetZoom(fabricCanvas, artboard)
         } else {
             const { left: x1, top: y1, width: w1, height: h1 } = artBoardArray[artBoardArray.length - 1]
 
@@ -489,6 +465,26 @@ function Instagram() {
 
         artboard.addTo(fabricCanvas);
         fabricCanvas.renderAll();
+
+    }
+
+    const handleSetZoom = (fabricCanvas, artboard) => {
+        const canvasWidth = fabricCanvas.width;
+        const canvasHeight = fabricCanvas.height;
+
+        const artboardWidth = artboard.width * artboard.scaleX;
+        const artboardHeight = artboard.height * artboard.scaleY;
+
+        const zoomX = canvasWidth / artboardWidth;
+        const zoomY = canvasHeight / artboardHeight;
+        const zoomLevel = Math.min(zoomX, zoomY) * 0.8;
+
+        fabricCanvas.zoomToPoint(
+            { x: canvasWidth / 2, y: canvasHeight / 2 },
+            zoomLevel
+        );
+
+        setZoomLevel(zoomLevel);
     }
 
     const checkArtboardPosition = () => {
