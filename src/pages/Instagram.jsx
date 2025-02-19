@@ -80,7 +80,7 @@ function Instagram() {
                 canvas.off("mouse:down", handleDrawingStart)
                 canvas.off("mouse:move", handleDrawing)
                 canvas.off("mouse:up", handleDrawingEnd)
-                canvas.on("object:moving", handleDragging)
+                canvas.off("object:moving", handleDragging)
             }
         }
     }, [shapeType])
