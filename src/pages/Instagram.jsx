@@ -36,6 +36,7 @@ function Instagram() {
     let selectionBox = null;
     let dragStarted = false;
     let artboardsBound = []
+    let inWhichArtboard = null
 
     useEffect(() => {
         const fabricCanvas = new fabric.Canvas(canvasRef.current, {
@@ -304,10 +305,12 @@ function Instagram() {
             return;
         }
 
+
         if (!dragStarted) {
+            let artboards = canvas.getObjects().filter(obj => obj.name === "artboard").reverse();
             dragStarted = true
 
-            artboardsBound = artBoardArray.map((boards) => {
+            artboardsBound = artboards.map((boards) => {
                 const artboardRect = boards.getBoundingRect();
 
                 const adjustedLeft = (artboardRect.left);
@@ -319,44 +322,51 @@ function Instagram() {
             })
         }
 
-        artboardsBound.forEach((boardsBound) => {
+        for (let boardsBound of artboardsBound) {
             const isInsideArtboard = cursorPos.x >= boardsBound.left &&
                 cursorPos.x <= boardsBound.left + boardsBound.width &&
                 cursorPos.y >= boardsBound.top &&
                 cursorPos.y <= boardsBound.top + boardsBound.height;
 
-            activeObjects.forEach((element) => {
-                if (isInsideArtboard) {
+            if (isInsideArtboard) {
+                inWhichArtboard = boardsBound
+                break
+            } else {
+                inWhichArtboard = null
+            }
+        }
+
+        activeObjects.forEach((element) => {
+            if (inWhichArtboard) {
+                element.clipPath = new fabric.Rect({
+                    left: inWhichArtboard.left,
+                    top: inWhichArtboard.top,
+                    width: inWhichArtboard.width,
+                    height: inWhichArtboard.height,
+                    absolutePositioned: true
+                })
+                inWhichArtboard.board.addChild(element)
+            } else {
+                if (activeObjects.length > 1) {
                     element.clipPath = new fabric.Rect({
-                        left: boardsBound.left,
-                        top: boardsBound.top,
-                        width: boardsBound.width,
-                        height: boardsBound.height,
+                        left: target.left + element.left,
+                        top: target.top + element.top,
+                        width: target.width + element.getScaledWidth(),
+                        height: target.height + element.getScaledHeight(),
                         absolutePositioned: true
                     })
-                    boardsBound.board.addChild(element)
+                    element?.artboardParent?.removeChild(element)
                 } else {
-                    if (activeObjects.length > 1) {
-                        element.clipPath = new fabric.Rect({
-                            left: target.left + element.left,
-                            top: target.top + element.top,
-                            width: target.width + element.getScaledWidth(),
-                            height: target.height + element.getScaledHeight(),
-                            absolutePositioned: true
-                        })
-                        boardsBound.board.removeChild(element)
-                    } else {
-                        element.clipPath = new fabric.Rect({
-                            left: element.left,
-                            top: element.top,
-                            width: element.getScaledWidth(),
-                            height: element.getScaledHeight(),
-                            absolutePositioned: true
-                        })
-                        boardsBound.board.removeChild(element)
-                    }
+                    element.clipPath = new fabric.Rect({
+                        left: element.left,
+                        top: element.top,
+                        width: element.getScaledWidth(),
+                        height: element.getScaledHeight(),
+                        absolutePositioned: true
+                    })
+                    element?.artboardParent?.removeChild(element)
                 }
-            })
+            }
             canvas.requestRenderAll();
         })
     }

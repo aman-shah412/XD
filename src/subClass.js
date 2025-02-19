@@ -78,6 +78,9 @@ class ArtboardSubclass extends fabric.Rect {
     }
 
     addChild(child) {
+        if (child?.artboardParent !== undefined && child?.artboardParent !== this) {
+            child.artboardParent.removeChild(child)
+        }
         if (!this.children.includes(child)) {
             this.children.push(child);
         }
@@ -86,9 +89,15 @@ class ArtboardSubclass extends fabric.Rect {
         if (this.children.length > 0) {
             this.selectable = false
         }
+
+        const artBoardIndex = child.canvas.getObjects().indexOf(this);
+        const maxZIndex = Math.max(...this.children.map((c, index) => index), 0);
+
+        child.canvas.moveObjectTo(child, artBoardIndex + maxZIndex + 1);
     }
 
     removeChild(child) {
+        child.canvas.bringObjectToFront(child)
         this.children = this.children.filter(c => c !== child);
         delete child.artboardParent;
 
