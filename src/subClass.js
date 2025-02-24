@@ -14,7 +14,7 @@ class ArtboardSubclass extends fabric.Rect {
             textAlign: "center",
             originX: "left",
             originY: "bottom",
-            selectable: false,
+            selectable: true,
             evented: true,
             editable: true,
             hasControls: false,
@@ -81,9 +81,11 @@ class ArtboardSubclass extends fabric.Rect {
         if (child?.artboardParent !== undefined && child?.artboardParent !== this) {
             child.artboardParent.removeChild(child)
         }
+
         if (!this.children.includes(child)) {
             this.children.push(child);
         }
+        
         child.artboardParent = this;
 
         if (this.children.length > 0) {

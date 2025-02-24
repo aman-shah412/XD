@@ -29,6 +29,7 @@ function Instagram() {
     const [shapeType, setShapeType] = useState("");
 
     let startPos
+    let endPos
     let offsetX, offsetY
     let titleDowned = false
     let clickedTitle = null
@@ -37,6 +38,8 @@ function Instagram() {
     let dragStarted = false;
     let artboardsBound = []
     let inWhichArtboard = null
+    let snappedEdge
+    let snapThreshold = 10
 
     useEffect(() => {
         const fabricCanvas = new fabric.Canvas(canvasRef.current, {
@@ -88,8 +91,6 @@ function Instagram() {
 
 
     const handleDrawingStart = (o) => {
-        startPos = canvas.getPointer(o.e);
-
         if (isDrawingRef.current) {
             tempShape.current = createTempShape(startPos)
             canvas.add(tempShape.current);
@@ -114,19 +115,169 @@ function Instagram() {
     }
 
     const handleDrawing = (o) => {
+        canvas.getObjects().forEach((obj) => {
+            if (obj.name === "guide_line") {
+                canvas.remove(obj);
+            }
+        });
         if (isDrawingRef.current && !tempShape.current) {
-            startPos = canvas.getPointer(o.e);
-            const objects = getAllObjectsAtPointer(startPos);
+            startPos = canvas.getPointer(o.e)
+            const objects = getAllObjectsAtPointer(startPos).filter(obj => obj.name === "artboard").reverse();
+            if (objects.length && objects[0]?.name.includes("artboard")) {
+                inWhichArtboard = objects[0]
+            } else {
+                inWhichArtboard = null
+            }
+
+            if (inWhichArtboard) {
+                // inWhichArtboard.set({selectable: false})
+                const cardClientRect = inWhichArtboard.getBoundingRect();
+
+                var snapToLeft = Math.abs(startPos.x - cardClientRect.left) < snapThreshold
+                var snapToRight = Math.abs(startPos.x - (cardClientRect.left + cardClientRect.width)) < snapThreshold
+                var snapToTop = Math.abs(startPos.y - cardClientRect.top) < snapThreshold
+                var snapToBottom = Math.abs(startPos.y - (cardClientRect.top + cardClientRect.height)) < snapThreshold;
+                var snapToCenterX = Math.abs(startPos.x - (cardClientRect.left + (cardClientRect.width / 2))) < snapThreshold;
+                var snapToCenterY = Math.abs(startPos.y - (cardClientRect.top + (cardClientRect.height / 2))) < snapThreshold;
+
+
+                if (snapToLeft) {
+                    snappedEdge = "left"
+                    startPos = { x: cardClientRect.left, y: startPos.y };
+                    drawGuideLine(inWhichArtboard, snappedEdge)
+                } else if (snapToRight) {
+                    snappedEdge = "right"
+                    startPos = { x: cardClientRect.left + cardClientRect.width, y: startPos.y };
+                    drawGuideLine(inWhichArtboard, snappedEdge)
+                }
+
+                if (snapToTop) {
+                    snappedEdge = "top"
+                    startPos = { x: startPos.x, y: cardClientRect.top };
+                    drawGuideLine(inWhichArtboard, snappedEdge)
+                } else if (snapToBottom) {
+                    snappedEdge = "bottom"
+                    startPos = { x: startPos.x, y: cardClientRect.top + cardClientRect.height };
+                    drawGuideLine(inWhichArtboard, snappedEdge)
+                }
+
+                if (snapToCenterX) {
+                    snappedEdge = "centerX"
+                    startPos = { x: cardClientRect.left + (cardClientRect.width / 2), y: startPos.y };
+                    drawGuideLine(inWhichArtboard, snappedEdge)
+                }
+                if (snapToCenterY) {
+                    snappedEdge = "centerY"
+                    startPos = { x: startPos.x, y: cardClientRect.top + (cardClientRect.height / 2) };
+                    drawGuideLine(inWhichArtboard, snappedEdge)
+                }
+
+                if (snapToLeft && snapToTop) {
+                    snappedEdge = "top-left"
+                    startPos = { x: cardClientRect.left, y: cardClientRect.top };
+                    drawGuideLine(inWhichArtboard, snappedEdge)
+                }
+                if (snapToRight && snapToTop) {
+                    snappedEdge = "top-right"
+                    startPos = { x: cardClientRect.left + cardClientRect.width, y: cardClientRect.top };
+                    drawGuideLine(inWhichArtboard, snappedEdge)
+                }
+                if (snapToRight && snapToBottom) {
+                    snappedEdge = "bottom-right"
+                    startPos = { x: cardClientRect.left + cardClientRect.width, y: cardClientRect.top + cardClientRect.width };
+                    drawGuideLine(inWhichArtboard, snappedEdge)
+                }
+                if (snapToLeft && snapToBottom) {
+                    snappedEdge = "bottom-left"
+                    startPos = { x: cardClientRect.left, y: cardClientRect.top + cardClientRect.width };
+                    drawGuideLine(inWhichArtboard, snappedEdge)
+                }
+                if (snapToCenterX && snapToCenterY) {
+                    snappedEdge = "centerX-centerY"
+                    startPos = { x: cardClientRect.left + (cardClientRect.width / 2), y: cardClientRect.top + (cardClientRect.height / 2) };
+                    drawGuideLine(inWhichArtboard, snappedEdge)
+                }
+            }
         }
 
         if (isDrawingRef.current && tempShape.current) {
-            const endPos = canvas.getPointer(o.e);
+            endPos = canvas.getPointer(o.e);
             const shiftPressed = o.e.shiftKey;
+
+            if (inWhichArtboard) {
+                const cardClientRect = inWhichArtboard.getBoundingRect();
+                let tempClientRect
+
+                const drawingDirection = {
+                    left: endPos.x < startPos.x,
+                    right: endPos.x > startPos.x,
+                    top: endPos.y < startPos.y,
+                    bottom: endPos.y > startPos.y,
+                };
+
+                let tempWidth = Math.abs(endPos.x - startPos.x);
+                let tempHeight = Math.abs(endPos.y - startPos.y);
+                if (shiftPressed) {
+                    if (shapeType === "TRIANGLE") {
+                        const size = Math.min(tempWidth, tempHeight * (2 / Math.sqrt(3)));
+                        tempWidth = size;
+                        tempHeight = (Math.sqrt(3) / 2) * size
+                    } else {
+                        const size = Math.min(tempWidth, tempHeight);
+                        tempWidth = tempHeight = size;
+                    }
+                }
+
+                tempClientRect = {
+                    left: startPos.x < endPos.x ? Math.min(startPos.x, endPos.x) : Math.max(startPos.x, endPos.x),
+                    top: startPos.y < endPos.y ? Math.min(startPos.y, endPos.y) : Math.max(startPos.y, endPos.y),
+                    width: tempWidth,
+                    height: tempHeight,
+                };
+
+                var snapToLeft = drawingDirection.left && Math.abs((tempClientRect.left - tempClientRect.width) - cardClientRect.left) < snapThreshold
+                var snapToRight = drawingDirection.right && Math.abs((tempClientRect.left + tempClientRect.width) - (cardClientRect.left + cardClientRect.width)) < snapThreshold
+                var snapToTop = drawingDirection.top && Math.abs((tempClientRect.top - tempClientRect.height) - cardClientRect.top) < snapThreshold
+                var snapToBottom = drawingDirection.bottom && Math.abs((tempClientRect.top + tempClientRect.height) - (cardClientRect.top + cardClientRect.height)) < snapThreshold;
+                var snapLeftToRightCenterX = drawingDirection.right && Math.abs((tempClientRect.left + tempClientRect.width) - (cardClientRect.left + (cardClientRect.width / 2))) < snapThreshold;
+                var snapTopToBottomCenterY = drawingDirection.bottom && Math.abs((tempClientRect.top + tempClientRect.height) - (cardClientRect.top + (cardClientRect.height / 2))) < snapThreshold;
+                var snapRightToLeftCenterX = drawingDirection.left && Math.abs((tempClientRect.left - tempClientRect.width) - (cardClientRect.left + (cardClientRect.width / 2))) < snapThreshold;
+                var snapBottomToTopCenterY = drawingDirection.top && Math.abs((tempClientRect.top - tempClientRect.height) - (cardClientRect.top + (cardClientRect.height / 2))) < snapThreshold;
+
+                if ((snappedEdge === null || !snappedEdge.includes("left")) && snapToLeft) {
+                    endPos = { x: cardClientRect.left, y: endPos.y };
+                    drawGuideLine(inWhichArtboard, "left")
+                } else if ((snappedEdge === null || !snappedEdge.includes("right")) && snapToRight) {
+                    endPos = { x: cardClientRect.left + cardClientRect.width, y: endPos.y };
+                    drawGuideLine(inWhichArtboard, "right")
+                }
+
+                if ((snappedEdge === null || !snappedEdge.includes("top")) && snapToTop) {
+                    endPos = { x: endPos.x, y: cardClientRect.top };
+                    drawGuideLine(inWhichArtboard, "top")
+                } else if ((snappedEdge === null || !snappedEdge.includes("bottom")) && snapToBottom) {
+                    endPos = { x: endPos.x, y: cardClientRect.top + cardClientRect.height };
+                    drawGuideLine(inWhichArtboard, "bottom")
+                }
+
+                if ((snappedEdge === null || !snappedEdge.includes("centerX")) && (snapLeftToRightCenterX || snapRightToLeftCenterX)) {
+                    endPos = { x: cardClientRect.left + (cardClientRect.width / 2), y: endPos.y };
+                    drawGuideLine(inWhichArtboard, "centerX")
+                }
+                if ((snappedEdge === null || !snappedEdge.includes("centerY")) && (snapTopToBottomCenterY || snapBottomToTopCenterY)) {
+                    endPos = { x: endPos.x, y: cardClientRect.top + (cardClientRect.height / 2) };
+                    drawGuideLine(inWhichArtboard, "centerY")
+                }
+
+            } else {
+
+            }
+
             updateTempShape(endPos, shiftPressed);
             canvas.requestRenderAll()
         }
         if (titleDowned) {
-            const endPos = canvas.getPointer(o.e);
+            endPos = canvas.getPointer(o.e);
 
             clickedTitle.set({
                 left: endPos.x + offsetX.title,
@@ -153,6 +304,46 @@ function Instagram() {
 
     const handleDrawingEnd = () => {
         if (isDrawingRef.current) {
+
+            const squareBounds = tempShape.current.getBoundingRect();
+            const cardNodes = canvas.getObjects().filter(obj => obj.name === "artboard").reverse();
+
+            const doRectanglesOverlap = (rect1, rect2) => {
+                return (
+                    rect1.left < rect2.left + rect2.width &&
+                    rect1.left + rect1.width > rect2.left &&
+                    rect1.top < rect2.top + rect2.height &&
+                    rect1.top + rect1.height > rect2.top
+                );
+            };
+
+            for (const cardNode of cardNodes) {
+                const cardBounds = cardNode.getBoundingRect();
+
+                if (doRectanglesOverlap(squareBounds, cardBounds)) {
+                    inWhichArtboard = cardNode;
+                    break;
+                }
+            }
+
+            if (inWhichArtboard) {
+                tempShape.current.clipPath = new fabric.Rect({
+                    left: inWhichArtboard.left,
+                    top: inWhichArtboard.top,
+                    width: inWhichArtboard.width,
+                    height: inWhichArtboard.height,
+                    absolutePositioned: true
+                })
+                inWhichArtboard.addChild(tempShape.current)
+            }
+
+            let allObjects = canvas.getObjects().filter(obj => obj.selectable === false)
+            allObjects.forEach((objs) => {
+                if (objs !== inWhichArtboard) {
+                    objs.set({ selectable: true })
+                }
+            })
+
             tempShape.current.setCoords();
             isDrawingRef.current = false
             canvas.defaultCursor = "default"
@@ -257,6 +448,7 @@ function Instagram() {
                     left: startPos.x + (endPos.x > startPos.x ? 0 : -width),
                     top: startPos.y + (endPos.y > startPos.y ? 0 : -height)
                 });
+                tempShape.current.setCoords()
                 break;
             case "CIRCLE":
                 let rx = Math.abs(endPos.x - startPos.x) / 2;
@@ -273,6 +465,7 @@ function Instagram() {
                     left: startPos.x + (endPos.x > startPos.x ? rx : -rx),
                     top: startPos.y + (endPos.y > startPos.y ? ry : -ry)
                 });
+                tempShape.current.setCoords()
                 break;
             case "TRIANGLE":
                 let triangleWidth = Math.abs(endPos.x - startPos.x);
@@ -290,6 +483,7 @@ function Instagram() {
                     left: startPos.x + (endPos.x > startPos.x ? 0 : -triangleWidth),
                     top: startPos.y + (endPos.y > startPos.y ? 0 : -triangleHeight)
                 });
+                tempShape.current.setCoords()
                 break;
             default:
                 break;
@@ -302,6 +496,17 @@ function Instagram() {
         let cursorPos = o.pointer
 
         if (activeObjects.some(obj => obj.name === "artboard")) {
+            activeObjects = activeObjects.filter(obj => obj.name !== "artboard")
+            activeObjects.forEach((element) => {
+                element.clipPath = new fabric.Rect({
+                    left: target.left + element.left,
+                    top: target.top + element.top,
+                    width: target.width + element.getScaledWidth(),
+                    height: target.height + element.getScaledHeight(),
+                    absolutePositioned: true
+                })
+                element?.artboardParent?.removeChild(element)
+            })
             return;
         }
 
@@ -431,7 +636,7 @@ function Instagram() {
             height: 1080,
             originX: "left",
             originY: "top",
-            fill: '#FFFFFF',
+            fill: getRandomColor(),
             label: `Artboard ${artBoardArray.length + 1}`,
             id: generateRandomId("artboard_"),
             name: "artboard",
@@ -442,6 +647,7 @@ function Instagram() {
             borderScaleFactor: 2,
             transparentCorners: false,
             // lockScalingFlip: true,
+            // selectable: false
         });
 
         artboard.setControlsVisibility({
@@ -531,6 +737,12 @@ function Instagram() {
         isDrawingRef.current = true
         canvas.defaultCursor = "crosshair"
         canvas.selection = false;
+        canvas.discardActiveObject()
+
+        let allObjects = canvas.getObjects().filter(obj => obj.selectable === true)
+        allObjects.forEach((objs) => {
+            objs.set({ selectable: false })
+        })
     }
 
     function getAbsolutePosition(obj, group) {
@@ -612,6 +824,67 @@ function Instagram() {
 
     function generateRandomId(id) {
         return id + (Math.random() * 1000) + 1
+    }
+
+    function getRandomColor() {
+        var letters = "0123456789ABCDEF";
+        var color = "#";
+        for (var i = 0; i < 6; i++) {
+            color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color.toUpperCase();
+    }
+
+    function drawGuideLine(card, edge) {
+        let vertPoint
+        let horPoint
+        let strokeWidth = 5
+
+        if (edge === "left") {
+            vertPoint = { x1: card.left, y1: card.top, x2: card.left, y2: card.top + card.getScaledHeight() };
+        }
+
+        if (edge === "right") {
+            vertPoint = { x1: card.left + card.getScaledWidth(), y1: card.top, x2: card.left + card.getScaledWidth(), y2: card.top + card.getScaledHeight() };
+        }
+
+        if (edge === "top") {
+            horPoint = { x1: card.left, y1: card.top, x2: card.left + card.getScaledWidth(), y2: card.top };
+        }
+
+        if (edge === "bottom") {
+            horPoint = { x1: card.left, y1: card.top + card.getScaledHeight(), x2: card.left + card.getScaledWidth(), y2: card.top + card.getScaledHeight() };
+        }
+
+        if (edge === "centerX") {
+            vertPoint = { x1: card.left + card.getScaledWidth() / 2, y1: card.top, x2: card.left + card.getScaledWidth() / 2, y2: card.top + card.getScaledHeight() };
+        }
+
+        if (edge === "centerY") {
+            horPoint = { x1: card.left, y1: card.top + card.getScaledHeight() / 2, x2: card.left + card.getScaledWidth(), y2: card.top + card.getScaledHeight() / 2 };
+        }
+
+        if (vertPoint) {
+            const verticalLine = new fabric.Line([vertPoint.x1, vertPoint.y1, vertPoint.x2, vertPoint.y2], {
+                stroke: '#FF4AE1',
+                strokeWidth: strokeWidth,
+                selectable: false,
+                name: 'guide_line'
+            });
+            canvas.add(verticalLine);
+            canvas.bringObjectToFront(verticalLine)
+        }
+
+        if (horPoint) {
+            const horizontalLine = new fabric.Line([horPoint.x1, horPoint.y1, horPoint.x2, horPoint.y2], {
+                stroke: '#FF4AE1',
+                strokeWidth: strokeWidth,
+                selectable: false,
+                name: 'guide_line'
+            });
+            canvas.add(horizontalLine);
+            canvas.bringObjectToFront(horizontalLine)
+        }
     }
 
     return (
