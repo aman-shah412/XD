@@ -31,7 +31,6 @@ function Instagram() {
     let startPos
     let endPos
     let offsetX, offsetY
-    let titleDowned = false
     let clickedTitle = null
     let clickedGroup = null
     let selectionBox = null;
@@ -77,6 +76,7 @@ function Instagram() {
             canvas.on("mouse:move", handleDrawing)
             canvas.on("mouse:up", handleDrawingEnd)
             canvas.on("object:moving", handleDragging)
+            canvas.on("selection:created", handleSelectionCreated)
         }
 
         return () => {
@@ -85,6 +85,7 @@ function Instagram() {
                 canvas.off("mouse:move", handleDrawing)
                 canvas.off("mouse:up", handleDrawingEnd)
                 canvas.off("object:moving", handleDragging)
+                canvas.off("selection:created", handleSelectionCreated)
             }
         }
     }, [shapeType])
@@ -95,14 +96,14 @@ function Instagram() {
             tempShape.current = createTempShape(startPos)
             canvas.add(tempShape.current);
         } else {
-            if (o.target?.name?.includes("artboard_title")) {
-                clickedTitle = o.target
-                clickedGroup = canvas.getObjects().find(obj => obj.id === o.target.groupID);
-                titleDowned = true
-                offsetX = { title: clickedTitle.left - startPos.x, group: clickedGroup.left - startPos.x };
-                offsetY = { title: clickedTitle.top - startPos.y, group: clickedGroup.top - startPos.y };
-                canvas.selection = false
-            }
+            // if (o.target?.name?.includes("artboard_title")) {
+            //     clickedTitle = o.target
+            //     clickedGroup = canvas.getObjects().find(obj => obj.id === o.target.groupID);
+            //     titleDowned = true
+            //     offsetX = { title: clickedTitle.left - startPos.x, group: clickedGroup.left - startPos.x };
+            //     offsetY = { title: clickedTitle.top - startPos.y, group: clickedGroup.top - startPos.y };
+            //     canvas.selection = false
+            // }
             // else {
             //     selectionBox = {
             //         left: startPos.x,
@@ -276,22 +277,6 @@ function Instagram() {
             updateTempShape(endPos, shiftPressed);
             canvas.requestRenderAll()
         }
-        if (titleDowned) {
-            endPos = canvas.getPointer(o.e);
-
-            clickedTitle.set({
-                left: endPos.x + offsetX.title,
-                top: endPos.y + offsetY.title
-            })
-            clickedTitle.setCoords();
-
-            clickedGroup.set({
-                left: endPos.x + offsetX.group,
-                top: endPos.y + offsetY.group
-            })
-            clickedGroup.setCoords();
-            canvas.requestRenderAll();
-        }
 
         if (selectionBox) {
             const pointer = canvas.getPointer(o.e);
@@ -337,28 +322,12 @@ function Instagram() {
                 inWhichArtboard.addChild(tempShape.current)
             }
 
-            let allObjects = canvas.getObjects().filter(obj => obj.selectable === false)
-            allObjects.forEach((objs) => {
-                if (objs !== inWhichArtboard) {
-                    objs.set({ selectable: true })
-                }
-            })
+            canvas.isDrawingMode = false
 
             tempShape.current.setCoords();
             isDrawingRef.current = false
             canvas.defaultCursor = "default"
-            canvas.selection = true;
             tempShape.current = null
-        }
-
-        if (titleDowned) {
-            canvas.selection = true
-            titleDowned = false
-            clickedTitle = null
-            clickedGroup = null
-            offsetX = null
-            offsetY = null
-            canvas.renderAll();
         }
 
         if (selectionBox) {
@@ -495,8 +464,8 @@ function Instagram() {
         let activeObjects = canvas.getActiveObjects()
         let cursorPos = o.pointer
 
-        if (activeObjects.some(obj => obj.name === "artboard")) {
-            activeObjects = activeObjects.filter(obj => obj.name !== "artboard")
+        if (activeObjects.some(obj => obj.name === "artboard" || obj.name === "artboard_title")) {
+            activeObjects = activeObjects.filter(obj => obj.name !== "artboard" && obj.name !== "artboard_title")
             activeObjects.forEach((element) => {
                 element.clipPath = new fabric.Rect({
                     left: target.left + element.left,
@@ -574,6 +543,24 @@ function Instagram() {
             }
             canvas.requestRenderAll();
         })
+    }
+
+    const handleSelectionCreated = (o) => {
+        // let filteredObjects = o.selected.filter(obj => obj.name !== "artboard_title");
+        // if (filteredObjects.length > 1) {
+        //     let activeSelection = new fabric.ActiveSelection(filteredObjects, {
+        //         canvas: canvas,
+        //         borderColor: "blue",
+        //         cornerColor: "yellow",
+        //         cornerSize: 10,
+        //         cornerStrokeColor: "black",
+        //         transparentCorners: false,
+        //         borderDashArray: [5, 5]
+        //     });
+
+        //     canvas.setActiveObject(activeSelection);
+        //     canvas.renderAll();
+        // }
     }
 
     const handleWheel = (opt) => {
@@ -736,13 +723,8 @@ function Instagram() {
         setShapeType(shape)
         isDrawingRef.current = true
         canvas.defaultCursor = "crosshair"
-        canvas.selection = false;
+        canvas.isDrawingMode = true
         canvas.discardActiveObject()
-
-        let allObjects = canvas.getObjects().filter(obj => obj.selectable === true)
-        allObjects.forEach((objs) => {
-            objs.set({ selectable: false })
-        })
     }
 
     function getAbsolutePosition(obj, group) {

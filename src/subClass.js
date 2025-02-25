@@ -9,6 +9,7 @@ class ArtboardSubclass extends fabric.Rect {
         this.children = [];
 
         this.labelled = new fabric.IText(this.label, {
+            name: "artboard_title",
             fontSize: 30,
             fill: "black",
             textAlign: "center",
