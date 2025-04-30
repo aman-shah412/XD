@@ -24,7 +24,6 @@ class ArtboardSubclass extends fabric.Rect {
             moveCursor: "text",
         });
 
-        this.updateLabelPosition();
         this.attachEvents();
     }
 
@@ -63,11 +62,6 @@ class ArtboardSubclass extends fabric.Rect {
         this.setCoords();
     }
 
-    set(key, value) {
-        super.set(key, value);
-        this.updateLabelPosition();
-    }
-
     attachEvents() {
         this.on("moving", () => this.updateLabelPosition());
         this.labelled.on("moving", () => this.updateArtboardPosition());
@@ -76,6 +70,7 @@ class ArtboardSubclass extends fabric.Rect {
     addTo(canvas) {
         canvas.add(this);
         canvas.add(this.labelled);
+        this.updateLabelPosition();
     }
 
     addChild(child) {

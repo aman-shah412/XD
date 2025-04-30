@@ -1,17 +1,16 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { FaUndoAlt, FaRedoAlt, FaPlus, FaMinus, FaRegSquare, FaRegCircle, FaSlash, FaLayerGroup } from "react-icons/fa";
-import { FaRegKeyboard, FaLock, FaLockOpen } from "react-icons/fa6";
+import { FaRegKeyboard } from "react-icons/fa6";
 import { BiText } from "react-icons/bi";
-import { IoIosCloseCircle } from "react-icons/io";
-import { MdOutlineDragIndicator } from "react-icons/md";
 import { TbZoomReset } from "react-icons/tb";
 import { RiShapesLine } from "react-icons/ri";
 import { IoCloudUploadOutline } from "react-icons/io5";
-import { LuBrain, LuEye, LuEyeClosed } from "react-icons/lu";
+import { LuBrain } from "react-icons/lu";
 import { FiTriangle } from "react-icons/fi";
 import "../appCSS/instagram.css"
 import * as fabric from "fabric";
 import { Artboard } from "../subClass";
+import LayersPanel from '../components/LayersPanel';
 
 function Instagram() {
 
@@ -23,7 +22,7 @@ function Instagram() {
     const [zoomLevel, setZoomLevel] = useState(0.8);
     const [artBoardArray, setArtBoardArray] = useState([]);
     const [artBoard, setArtBoard] = useState(null);
-    const [expand, setExpand] = useState(false);
+    const [expand, setExpand] = useState(true);
     const [needToShift, setNeedToShift] = useState(false);
     const [shifted, setShifted] = useState(false);
     const [shapeType, setShapeType] = useState("");
@@ -37,7 +36,7 @@ function Instagram() {
     let dragStarted = false;
     let artboardsBound = []
     let inWhichArtboard = null
-    let snappedEdge
+    let snappedEdge = null
     let snapThreshold = 10
 
     useEffect(() => {
@@ -45,6 +44,8 @@ function Instagram() {
             width: window.innerWidth,
             height: window.innerHeight,
             preserveObjectStacking: true,
+            perPixelTargetFind: true,
+            // selectionFullyContained: true
         });
 
         setCanvas(fabricCanvas);
@@ -76,6 +77,8 @@ function Instagram() {
             canvas.on("mouse:move", handleDrawing)
             canvas.on("mouse:up", handleDrawingEnd)
             canvas.on("object:moving", handleDragging)
+            canvas.on("object:rotating", handleModification)
+            canvas.on("object:scaling", handleModification)
             canvas.on("selection:created", handleSelectionCreated)
         }
 
@@ -85,6 +88,8 @@ function Instagram() {
                 canvas.off("mouse:move", handleDrawing)
                 canvas.off("mouse:up", handleDrawingEnd)
                 canvas.off("object:moving", handleDragging)
+                canvas.off("object:rotating", handleModification)
+                canvas.off("object:scaling", handleModification)
                 canvas.off("selection:created", handleSelectionCreated)
             }
         }
@@ -366,8 +371,9 @@ function Instagram() {
                     fill: '#000000',
                     stroke: 'black',
                     strokeWidth: 1,
-                    selectable: true,
-                    name: "shape"
+                    name: "shape",
+                    snapAngle: 30,
+                    snapThreshold: 5
                 });
             case "CIRCLE":
                 return new fabric.Ellipse({
@@ -378,10 +384,11 @@ function Instagram() {
                     fill: '#000000',
                     stroke: 'black',
                     strokeWidth: 1,
-                    selectable: false,
                     originX: 'center',
                     originY: 'center',
-                    name: "shape"
+                    name: "shape",
+                    snapAngle: 30,
+                    snapThreshold: 5
                 });
             case "TRIANGLE":
                 return new fabric.Triangle({
@@ -392,8 +399,9 @@ function Instagram() {
                     fill: '#000000',
                     stroke: 'black',
                     strokeWidth: 1,
-                    selectable: false,
-                    name: "shape"
+                    name: "shape",
+                    snapAngle: 30,
+                    snapThreshold: 5
                 });
             default:
                 null
@@ -527,7 +535,8 @@ function Instagram() {
                         top: target.top + element.top,
                         width: target.width + element.getScaledWidth(),
                         height: target.height + element.getScaledHeight(),
-                        absolutePositioned: true
+                        absolutePositioned: true,
+                        angle: target.angle + element.angle
                     })
                     element?.artboardParent?.removeChild(element)
                 } else {
@@ -536,7 +545,8 @@ function Instagram() {
                         top: element.top,
                         width: element.getScaledWidth(),
                         height: element.getScaledHeight(),
-                        absolutePositioned: true
+                        absolutePositioned: true,
+                        angle: element.angle
                     })
                     element?.artboardParent?.removeChild(element)
                 }
@@ -545,22 +555,40 @@ function Instagram() {
         })
     }
 
-    const handleSelectionCreated = (o) => {
-        // let filteredObjects = o.selected.filter(obj => obj.name !== "artboard_title");
-        // if (filteredObjects.length > 1) {
-        //     let activeSelection = new fabric.ActiveSelection(filteredObjects, {
-        //         canvas: canvas,
-        //         borderColor: "blue",
-        //         cornerColor: "yellow",
-        //         cornerSize: 10,
-        //         cornerStrokeColor: "black",
-        //         transparentCorners: false,
-        //         borderDashArray: [5, 5]
-        //     });
+    const handleModification = (o) => {
+        let target = o.target
+        let activeObjects = canvas.getActiveObjects()
+        activeObjects.forEach((element) => {
+            if (!element.artboardParent) {
+                if (activeObjects.length > 1) {
+                    element.clipPath = new fabric.Rect({
+                        left: 0,
+                        top: 0,
+                        width: target.width + element.getScaledWidth(),
+                        height: target.height + element.getScaledHeight(),
+                        originX: "center",
+                        originY: "center",
+                    })
+                } else {
+                    element.clipPath = new fabric.Rect({
+                        left: 0,
+                        top: 0,
+                        width: element.getScaledWidth(),
+                        height: element.getScaledHeight(),
+                        originX: "left",
+                        originY: "top",
+                    })
+                }
+            }
+        })
+    }
 
-        //     canvas.setActiveObject(activeSelection);
-        //     canvas.renderAll();
-        // }
+    const handleSelectionCreated = (o) => {
+        let filteredObjects = o.selected.filter(obj => obj.name !== "artboard_title");
+        if (filteredObjects.length === 1) {
+            canvas.setActiveObject(filteredObjects[0]);
+            canvas.renderAll();
+        }
     }
 
     const handleWheel = (opt) => {
@@ -889,48 +917,7 @@ function Instagram() {
                         <button className="utils_icons"><FaRegKeyboard size={20} /></button>
                     </div>
                 </div>
-                {expand && <div className="left_expanded_panel">
-                    <div className='left_expanded_panel_content'>
-                        <div className='position-relative d-flex justify-content-center align-items-center'>
-                            <span className='mb-3 text-light'>Layers</span>
-                            <button className="close_icon"><IoIosCloseCircle size={25} /></button>
-                        </div>
-                        <div className='accordion_content'>
-                            <div className="accordion" id="layer_accordion">
-                                {artBoardArray.map((board, i) => {
-                                    return <div className="accordion-item mb-3" key={i}>
-                                        <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target={`#collapse_${i + 1}`} aria-expanded="true" aria-controls="collapseOne">
-                                            Artboard {i + 1}
-                                        </button>
-                                        <div id={`collapse_${i + 1}`} className="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#layer_accordion">
-                                            <div className="accordion-body px-1">
-                                                <div className="preview-tile-container">
-                                                    <div className="preview-tile">
-                                                        <MdOutlineDragIndicator size={25} color='#FFFFFF' />
-                                                        <img src="vite.svg" alt="" />
-                                                        <div className="d-flex flex-column">
-                                                            <button className='tile-control-button'>
-                                                                {/* <FaLock size={15} /> */}
-                                                                <FaLockOpen size={15} />
-                                                            </button>
-                                                            <button className='tile-control-button'>
-                                                                <LuEye />
-                                                                {/* <LuEyeClosed /> */}
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                })}
-                            </div>
-                        </div>
-                        <div>
-                            <button className='add_new_artboard mt-4' onClick={() => { createWhiteBoard(canvas) }}>New Artboard</button>
-                        </div>
-                    </div>
-                </div>}
+                <LayersPanel expand={expand} artBoardArray={artBoardArray} createWhiteBoard={createWhiteBoard} canvas={canvas} handleExpandLeftPanel={handleExpandLeftPanel} />
             </div>
             <canvas ref={canvasRef} />
             <div className='zoom_undo_redo d-flex align-items-center justify-content-around'>
