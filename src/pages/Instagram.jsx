@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { FaUndoAlt, FaRedoAlt, FaPlus, FaMinus, FaRegSquare, FaRegCircle, FaSlash, FaLayerGroup } from "react-icons/fa";
-import { FaRegKeyboard } from "react-icons/fa6";
+import { FaArrowPointer, FaRegKeyboard } from "react-icons/fa6";
 import { BiText } from "react-icons/bi";
 import { TbZoomReset } from "react-icons/tb";
 import { RiShapesLine } from "react-icons/ri";
@@ -49,7 +49,7 @@ function Instagram() {
         });
 
         setCanvas(fabricCanvas);
-        setShapeType(null)
+        setShapeType("CURSOR")
         createWhiteBoard(fabricCanvas)
 
         return () => {
@@ -327,11 +327,7 @@ function Instagram() {
                 inWhichArtboard.addChild(tempShape.current)
             }
 
-            canvas.isDrawingMode = false
-
             tempShape.current.setCoords();
-            isDrawingRef.current = false
-            canvas.defaultCursor = "default"
             tempShape.current = null
         }
 
@@ -529,27 +525,15 @@ function Instagram() {
                 })
                 inWhichArtboard.board.addChild(element)
             } else {
-                if (activeObjects.length > 1) {
-                    element.clipPath = new fabric.Rect({
-                        left: target.left + element.left,
-                        top: target.top + element.top,
-                        width: target.width + element.getScaledWidth(),
-                        height: target.height + element.getScaledHeight(),
-                        absolutePositioned: true,
-                        angle: target.angle + element.angle
-                    })
-                    element?.artboardParent?.removeChild(element)
-                } else {
-                    element.clipPath = new fabric.Rect({
-                        left: element.left,
-                        top: element.top,
-                        width: element.getScaledWidth(),
-                        height: element.getScaledHeight(),
-                        absolutePositioned: true,
-                        angle: element.angle
-                    })
-                    element?.artboardParent?.removeChild(element)
-                }
+                let bounds = element.getBoundingRect()
+                element.clipPath = new fabric.Rect({
+                    left: bounds.left,
+                    top: bounds.top,
+                    width: bounds.width,
+                    height: bounds.height,
+                    absolutePositioned: true,
+                })
+                element?.artboardParent?.removeChild(element)
             }
             canvas.requestRenderAll();
         })
@@ -747,16 +731,20 @@ function Instagram() {
         }
     }
 
-    const startDrawing = (shape) => {
+    const startDrawing = (shape, isDraw) => {
+        isDrawingRef.current = isDraw
+        canvas.isDrawingMode = isDraw
         setShapeType(shape)
-        isDrawingRef.current = true
-        canvas.defaultCursor = "crosshair"
-        canvas.isDrawingMode = true
-        canvas.discardActiveObject()
+        if (isDraw) {
+            canvas.defaultCursor = "crosshair"
+            canvas.discardActiveObject()
+        } else {
+            canvas.defaultCursor = "default"
+        }
     }
 
     function getAbsolutePosition(obj, group) {
-        if (!group) return obj; // If not in a group, return as is
+        if (!group) return obj;
 
         const matrix = group.calcTransformMatrix();
         const absolutePosition = fabric.util.transformPoint(
@@ -902,18 +890,18 @@ function Instagram() {
             <div>
                 <div className='left_panel d-flex flex-column justify-content-between'>
                     <div className='element_panel d-flex flex-column align-items-center justify-content-around'>
-                        <button className="utils_icons"><BiText size={20} /></button>
-                        <button className="utils_icons"><RiShapesLine size={20} /></button>
+                        <button className={`utils_icons ${shapeType === "CURSOR" ? "active" : ""}`} onClick={() => { startDrawing("CURSOR", false) }}><FaArrowPointer size={20} /></button>
+                        <button className={`utils_icons ${shapeType === "TEXT" ? "active" : ""}`} onClick={() => { startDrawing("TEXT", false) }}><BiText size={20} /></button>
                         <button className="utils_icons"><IoCloudUploadOutline size={20} /></button>
                         <button className="utils_icons"><LuBrain size={20} /></button>
-                        <button className="utils_icons" onClick={() => { startDrawing("SQUARE") }}><FaRegSquare size={20} /></button>
-                        <button className="utils_icons" onClick={() => { startDrawing("CIRCLE") }}><FaRegCircle size={20} /></button>
-                        <button className="utils_icons" onClick={() => { startDrawing("TRIANGLE") }}><FiTriangle size={20} /></button>
-                        <button className="utils_icons"><FaSlash size={20} /></button>
+                        <button className={`utils_icons ${shapeType === "SQUARE" ? "active" : ""}`} onClick={() => { startDrawing("SQUARE", true) }}><FaRegSquare size={20} /></button>
+                        <button className={`utils_icons ${shapeType === "CIRCLE" ? "active" : ""}`} onClick={() => { startDrawing("CIRCLE", true) }}><FaRegCircle size={20} /></button>
+                        <button className={`utils_icons ${shapeType === "TRIANGLE" ? "active" : ""}`} onClick={() => { startDrawing("TRIANGLE", true) }}><FiTriangle size={20} /></button>
+                        <button className={`utils_icons ${shapeType === "LINE" ? "active" : ""}`} onClick={() => { startDrawing("LINE", false) }}><FaSlash size={20} /></button>
                         <button className="utils_icons" onClick={handleResetZoom}><TbZoomReset size={20} /></button>
                     </div>
                     <div className='tools_panel'>
-                        <button className="utils_icons" onClick={handleExpandLeftPanel}><FaLayerGroup size={20} /></button>
+                        <button className={`utils_icons ${expand ? "active" : ""}`} onClick={handleExpandLeftPanel}><FaLayerGroup size={20} /></button>
                         <button className="utils_icons"><FaRegKeyboard size={20} /></button>
                     </div>
                 </div>

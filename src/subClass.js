@@ -65,6 +65,10 @@ class ArtboardSubclass extends fabric.Rect {
     attachEvents() {
         this.on("moving", () => this.updateLabelPosition());
         this.labelled.on("moving", () => this.updateArtboardPosition());
+        this.labelled.on("mouseup", (e) => {
+            this.canvas.discardActiveObject()
+            this.canvas.setActiveObject(this, e)
+        })
     }
 
     addTo(canvas) {
@@ -81,7 +85,7 @@ class ArtboardSubclass extends fabric.Rect {
         if (!this.children.includes(child)) {
             this.children.push(child);
         }
-        
+
         child.artboardParent = this;
 
         if (this.children.length > 0) {
