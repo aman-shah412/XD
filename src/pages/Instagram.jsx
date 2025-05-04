@@ -29,10 +29,6 @@ function Instagram() {
 
     let startPos
     let endPos
-    let offsetX, offsetY
-    let clickedTitle = null
-    let clickedGroup = null
-    let selectionBox = null;
     let dragStarted = false;
     let artboardsBound = []
     let inWhichArtboard = null
@@ -100,23 +96,6 @@ function Instagram() {
         if (isDrawingRef.current) {
             tempShape.current = createTempShape(startPos)
             canvas.add(tempShape.current);
-        } else {
-            // if (o.target?.name?.includes("artboard_title")) {
-            //     clickedTitle = o.target
-            //     clickedGroup = canvas.getObjects().find(obj => obj.id === o.target.groupID);
-            //     titleDowned = true
-            //     offsetX = { title: clickedTitle.left - startPos.x, group: clickedGroup.left - startPos.x };
-            //     offsetY = { title: clickedTitle.top - startPos.y, group: clickedGroup.top - startPos.y };
-            //     canvas.selection = false
-            // }
-            // else {
-            //     selectionBox = {
-            //         left: startPos.x,
-            //         top: startPos.y,
-            //         width: 0,
-            //         height: 0,
-            //     };
-            // }
         }
     }
 
@@ -282,14 +261,6 @@ function Instagram() {
             updateTempShape(endPos, shiftPressed);
             canvas.requestRenderAll()
         }
-
-        if (selectionBox) {
-            const pointer = canvas.getPointer(o.e);
-            selectionBox.width = Math.abs(pointer.x - startPos.x);
-            selectionBox.height = Math.abs(pointer.y - startPos.y);
-            selectionBox.left = Math.min(pointer.x, startPos.x);
-            selectionBox.top = Math.min(pointer.y, startPos.y);
-        }
     }
 
     const handleDrawingEnd = () => {
@@ -331,26 +302,6 @@ function Instagram() {
             tempShape.current = null
         }
 
-        if (selectionBox) {
-            const objectsInsideSelection = canvas.getObjects().filter((obj) => {
-                if (obj.type === 'group') {
-                    const foundInGroup = findObjectByNameInGroups('artboard_rect', obj.getObjects());
-                    if (foundInGroup) {
-                        return isArtboardFullyInsideSelectionBox(foundInGroup, selectionBox);
-                    }
-                }
-                return false;
-            });
-
-            if (objectsInsideSelection.length) {
-                canvas.setActiveObject(objectsInsideSelection[0])
-                canvas.renderAll()
-            } else {
-                canvas.discardActiveObject()
-            }
-            selectionBox = null
-        }
-
         if (dragStarted) {
             dragStarted = false
         }
@@ -369,7 +320,13 @@ function Instagram() {
                     strokeWidth: 1,
                     name: "shape",
                     snapAngle: 30,
-                    snapThreshold: 5
+                    snapThreshold: 5,
+                    cornerStyle: 'circle',
+                    borderColor: 'blue',
+                    cornerColor: 'white',
+                    cornerStrokeColor: 'blue',
+                    borderScaleFactor: 2,
+                    transparentCorners: false,
                 });
             case "CIRCLE":
                 return new fabric.Ellipse({
@@ -384,7 +341,13 @@ function Instagram() {
                     originY: 'center',
                     name: "shape",
                     snapAngle: 30,
-                    snapThreshold: 5
+                    snapThreshold: 5,
+                    cornerStyle: 'circle',
+                    borderColor: 'blue',
+                    cornerColor: 'white',
+                    cornerStrokeColor: 'blue',
+                    borderScaleFactor: 2,
+                    transparentCorners: false,
                 });
             case "TRIANGLE":
                 return new fabric.Triangle({
@@ -397,7 +360,13 @@ function Instagram() {
                     strokeWidth: 1,
                     name: "shape",
                     snapAngle: 30,
-                    snapThreshold: 5
+                    snapThreshold: 5,
+                    cornerStyle: 'circle',
+                    borderColor: 'blue',
+                    cornerColor: 'white',
+                    cornerStrokeColor: 'blue',
+                    borderScaleFactor: 2,
+                    transparentCorners: false,
                 });
             default:
                 null
@@ -568,6 +537,22 @@ function Instagram() {
     }
 
     const handleSelectionCreated = (o) => {
+        const activeSelection = canvas.getActiveObject();
+
+        if (activeSelection && activeSelection.type === 'activeselection') {
+            activeSelection.set({
+                cornerStyle: 'circle',
+                borderColor: 'blue',
+                cornerColor: 'white',
+                cornerStrokeColor: 'blue',
+                borderScaleFactor: 2,
+                transparentCorners: false,
+                snapAngle: 30,
+                snapThreshold: 5,
+            });
+
+            canvas.requestRenderAll();
+        }
         let filteredObjects = o.selected.filter(obj => obj.name !== "artboard_title");
         if (filteredObjects.length === 1) {
             canvas.setActiveObject(filteredObjects[0]);
