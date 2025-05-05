@@ -1,0 +1,51 @@
+.property-panel {
+    position: absolute;
+    width: 18rem;
+    height: 100%;
+    right: 0;
+    top: 0;
+    box-shadow: 0 2px 5px #000000;
+    z-index: 9;
+    /* padding: 10px 0; */
+    background-color: #555555;
+}
+
+.property-panel .border-1 {
+    border-color: #666666 !important;
+}
+
+.repeat-grid {
+    width: 125px;
+    border: none;
+    outline: none;
+    background-color: #666666;
+    border-radius: 50px;
+    padding: 5px 15px;
+}
+
+.repeat-grid span {
+    font-size: 12px;
+}
+
+.repeat-grid:hover {
+    color: var(--hover-color);
+}
+
+.transform input[type="number"]{
+    width: 50%;
+    background-color: transparent;
+    border: none;
+    outline: none;
+    border-bottom: 1px solid #000000;
+    margin-left: 5px;
+    height: 100%;
+}
+
+.transform input:hover,
+.transform input:focus {
+  border-bottom: 1px solid var(--hover-color);
+}
+
+.transform input[type="range"]{
+width: 100%;
+}

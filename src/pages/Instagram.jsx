@@ -8,9 +8,12 @@ import { IoCloudUploadOutline } from "react-icons/io5";
 import { LuBrain } from "react-icons/lu";
 import { FiTriangle } from "react-icons/fi";
 import "../appCSS/instagram.css"
+import "../appCSS/layerspanel.css"
+import "../appCSS/propertypanel.css"
 import * as fabric from "fabric";
 import { Artboard } from "../subClass";
 import LayersPanel from '../components/LayersPanel';
+import ProperyPanel from '../components/ProperyPanel';
 
 function Instagram() {
 
@@ -900,6 +903,7 @@ function Instagram() {
                 <button className="utils_icons" onClick={handleZoomIn}><FaPlus size={20} /></button>
                 <button className="utils_icons"><FaRedoAlt size={20} /></button>
             </div>
+            <ProperyPanel />
         </>
     )
 }
