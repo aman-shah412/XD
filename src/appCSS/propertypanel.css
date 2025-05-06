@@ -6,8 +6,19 @@
     top: 0;
     box-shadow: 0 2px 5px #000000;
     z-index: 9;
-    /* padding: 10px 0; */
     background-color: #555555;
+    overflow-x: hidden;
+    overflow-y: auto;
+
+}
+
+.property-panel::-webkit-scrollbar {
+    width: 8px;
+}
+
+.property-panel::-webkit-scrollbar-thumb {
+    background-color: var(--hover-color);
+    border-radius: 20px;
 }
 
 .property-panel .border-1 {
@@ -31,21 +42,124 @@
     color: var(--hover-color);
 }
 
-.transform input[type="number"]{
+.transform input[type="number"],
+.appearance input[type="number"],
+.effects input[type="number"] {
     width: 50%;
     background-color: transparent;
     border: none;
     outline: none;
     border-bottom: 1px solid #000000;
     margin-left: 5px;
-    height: 100%;
+    height: 25px
 }
 
-.transform input:hover,
-.transform input:focus {
-  border-bottom: 1px solid var(--hover-color);
+.transform input[type="number"]:hover,
+.transform input[type="number"]:focus,
+.appearance input[type="number"]:hover,
+.appearance input[type="number"]:focus,
+.effects input[type="number"]:hover,
+.effects input[type="number"]:focus {
+    border-bottom: 1px solid var(--hover-color);
 }
 
-.transform input[type="range"]{
-width: 100%;
+.appearance input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 3px;
+    background: #000000;
+    border-radius: 2px;
+    outline: none;
+    margin: 10px 0 0 0;
+    padding: 0;
+}
+
+.appearance input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 16px;
+    width: 16px;
+    border: 2px solid #000000;
+    background: #FFFFFF;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+/* Firefox */
+.appearance input[type="range"]::-moz-range-thumb {
+    height: 16px;
+    width: 16px;
+    border: 2px solid #000000;
+    background: #FFFFFF;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+/* Firefox track */
+.appearance input[type="range"]::-moz-range-track {
+    height: 4px;
+    background: #000000;
+    border-radius: 2px;
+}
+
+/* IE and Edge (older versions) */
+.appearance input[type="range"]::-ms-thumb {
+    height: 16px;
+    width: 16px;
+    border: 2px solid #000000;
+    background: #FFFFFF;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.appearance select,
+.effects select {
+    width: 100%;
+    background: #666666;
+    border: 2px solid #555555;
+    font-size: 14px;
+}
+
+.appearance input[type="checkbox"],
+.effects input[type="checkbox"] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #000000;
+    border-radius: 5px;
+    cursor: pointer;
+    position: relative;
+    outline: none;
+}
+
+.appearance input[type="checkbox"]:checked,
+.effects input[type="checkbox"]:checked {
+    background-color: var(--hover-color);
+    border-color: var(--hover-color);
+}
+
+.appearance input[type="checkbox"]:checked::after,
+.effects input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    top: 2.5px;
+    left: 5px;
+    width: 4.5px;
+    height: 9px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.appearance input[type="color"],
+.effects input[type="color"] {
+    border: none;
+    background: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.appearance input[type="radio"] {
+    display: none;
 }
