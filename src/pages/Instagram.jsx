@@ -29,6 +29,7 @@ function Instagram() {
     const [needToShift, setNeedToShift] = useState(false);
     const [shifted, setShifted] = useState(false);
     const [shapeType, setShapeType] = useState("");
+    const [activeElement, setActiveElement] = useState(null)
 
     let startPos
     let endPos
@@ -99,6 +100,20 @@ function Instagram() {
         if (isDrawingRef.current) {
             tempShape.current = createTempShape(startPos)
             canvas.add(tempShape.current);
+        } else {
+            const activeSelection = canvas.getActiveObject();
+
+            if (activeSelection && activeSelection?.type === 'activeselection') {
+                setActiveElement("multiple")
+            } else if (!activeSelection) {
+                setActiveElement(null)
+            } else {
+                if (activeSelection.name.includes("artboard")) {
+                    setActiveElement("artboard")
+                } else {
+                    setActiveElement(activeSelection.name)
+                }
+            }
         }
     }
 
@@ -303,6 +318,20 @@ function Instagram() {
 
             tempShape.current.setCoords();
             tempShape.current = null
+        } else {
+            const activeSelection = canvas.getActiveObject();
+
+            if (activeSelection && activeSelection?.type === 'activeselection') {
+                setActiveElement("multiple")
+            } else if (!activeSelection) {
+                setActiveElement(null)
+            } else {
+                if (activeSelection.name.includes("artboard")) {
+                    setActiveElement("artboard")
+                } else {
+                    setActiveElement(activeSelection.name)
+                }
+            }
         }
 
         if (dragStarted) {
@@ -903,7 +932,7 @@ function Instagram() {
                 <button className="utils_icons" onClick={handleZoomIn}><FaPlus size={20} /></button>
                 <button className="utils_icons"><FaRedoAlt size={20} /></button>
             </div>
-            <ProperyPanel />
+            <ProperyPanel activeElement={activeElement} />
         </>
     )
 }

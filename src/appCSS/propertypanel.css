@@ -44,7 +44,8 @@
 
 .transform input[type="number"],
 .appearance input[type="number"],
-.effects input[type="number"] {
+.effects input[type="number"],
+.scrolling input[type="number"] {
     width: 50%;
     background-color: transparent;
     border: none;
@@ -59,7 +60,9 @@
 .appearance input[type="number"]:hover,
 .appearance input[type="number"]:focus,
 .effects input[type="number"]:hover,
-.effects input[type="number"]:focus {
+.effects input[type="number"]:focus,
+.scrolling input[type="number"]:hover,
+.scrolling input[type="number"]:focus {
     border-bottom: 1px solid var(--hover-color);
 }
 
@@ -67,7 +70,7 @@
     -webkit-appearance: none;
     width: 100%;
     height: 3px;
-    background: #000000;
+    background: #666666;
     border-radius: 2px;
     outline: none;
     margin: 10px 0 0 0;
@@ -78,8 +81,8 @@
     -webkit-appearance: none;
     height: 16px;
     width: 16px;
-    border: 2px solid #000000;
-    background: #FFFFFF;
+    border: 3px solid #666666;
+    background: #555555;
     border-radius: 50%;
     cursor: pointer;
 }
@@ -112,7 +115,9 @@
 }
 
 .appearance select,
-.effects select {
+.effects select,
+.scrolling select,
+.grid select {
     width: 100%;
     background: #666666;
     border: 2px solid #555555;
@@ -120,7 +125,8 @@
 }
 
 .appearance input[type="checkbox"],
-.effects input[type="checkbox"] {
+.effects input[type="checkbox"],
+.grid input[type="checkbox"] {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
@@ -134,13 +140,15 @@
 }
 
 .appearance input[type="checkbox"]:checked,
-.effects input[type="checkbox"]:checked {
+.effects input[type="checkbox"]:checked,
+.grid input[type="checkbox"]:checked {
     background-color: var(--hover-color);
     border-color: var(--hover-color);
 }
 
 .appearance input[type="checkbox"]:checked::after,
-.effects input[type="checkbox"]:checked::after {
+.effects input[type="checkbox"]:checked::after,
+.grid input[type="checkbox"]:checked::after {
     content: '';
     position: absolute;
     top: 2.5px;
